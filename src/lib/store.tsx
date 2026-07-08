@@ -4,7 +4,10 @@ import type {
   Reflection, Settings, TopTask, WeeklyReview,
 } from './types';
 import { clean, parseJSON, uid } from './clean';
-import { createBackend } from './backend';
+import {
+  connectDataFile, createBackend, dataFileSupported, disconnectDataFile,
+  getDataFileState, hadStoredLocalData, pushDataFile, reconnectDataFile,
+} from './backend';
 import { seedState } from './seed';
 import { AnthropicProvider, OpenAIProvider, StubProvider } from './ai/provider';
 import { buildContext, prompts, scheduleSummary, toneInstruction } from './ai/prompts';
@@ -47,6 +50,13 @@ export interface AppContextValue extends PersistedState {
   /** Replace all data from a backup file's contents. False if it isn't one. */
   importData(raw: unknown): boolean;
 
+  /** Live data file: a real on-disk mirror that browser cleanups can't wipe. */
+  dataFileStatus: 'unsupported' | 'off' | 'on' | 'reconnect';
+  dataFileName: string | null;
+  connectFile(): Promise<boolean>;
+  reconnectFile(): Promise<boolean>;
+  disconnectFile(): Promise<void>;
+
   /** AI actions resolve true on success, false after a failure toast. */
   captureDump(text: string): Promise<boolean>;
   replanTop(): Promise<boolean>;
@@ -82,6 +92,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   });
   const [err, setErr] = useState<string | null>(null);
   const [connections, setConnections] = useState<string | null>(null);
+  const [dataFileStatus, setDataFileStatus] = useState<'unsupported' | 'off' | 'on' | 'reconnect'>(
+    'unsupported',
+  );
+  const [dataFileName, setDataFileName] = useState<string | null>(null);
   const errTimer = useRef<ReturnType<typeof setTimeout>>();
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -100,6 +114,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       applyTheme(loaded.settings.dark);
       if (loaded.goals.length && !loaded.goals.some((g) => g.id === 'g1')) {
         setSelGoal(loaded.goals[0].id);
+      }
+      if (dataFileSupported()) {
+        const fs = getDataFileState();
+        setDataFileStatus(fs.status);
+        setDataFileName(fs.name);
       }
       setHydrated(true);
     });
@@ -204,6 +223,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const exportData = useCallback((): PersistedState => dataRef.current, []);
 
+  const syncFileState = useCallback(() => {
+    const fs = getDataFileState();
+    setDataFileStatus(fs.status);
+    setDataFileName(fs.name);
+  }, []);
+
+  const connectFile = useCallback(async () => {
+    const ok = await connectDataFile(dataRef.current);
+    if (ok) syncFileState();
+    return ok;
+  }, [syncFileState]);
+
+  const disconnectFile = useCallback(async () => {
+    await disconnectDataFile();
+    syncFileState();
+  }, [syncFileState]);
+
   const importData = useCallback(
     (raw: unknown): boolean => {
       if (!raw || typeof raw !== 'object') return false;
@@ -222,6 +258,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     [persist],
   );
+
+  const reconnectFile = useCallback(async () => {
+    const r = await reconnectDataFile();
+    if (!r.granted) return false;
+    if (hadStoredLocalData()) {
+      // Browser data survived, so it is current: refresh the file from it.
+      pushDataFile(dataRef.current);
+    } else if (r.fileState) {
+      // Browser data was wiped: recover everything from the file.
+      importData(r.fileState);
+    }
+    syncFileState();
+    return true;
+  }, [importData, syncFileState]);
 
   /* ---------- instant actions ---------- */
   const toggleTheme = useCallback(() => {
@@ -484,6 +534,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearMemory,
     exportData,
     importData,
+    dataFileStatus,
+    dataFileName,
+    connectFile,
+    reconnectFile,
+    disconnectFile,
     captureDump,
     replanTop,
     regenCascade,

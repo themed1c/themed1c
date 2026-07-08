@@ -56,7 +56,13 @@ src/lib/store.tsx       THE app: one React context (AppContextValue) holding all
                         toast. Modules never fetch or persist directly.
 src/lib/backend.ts      Backend interface; ElectronBackend (IPC) or BrowserBackend
                         (localStorage key 'life-org-v2' + direct API fetch with the
-                        anthropic-dangerous-direct-browser-access header).
+                        anthropic-dangerous-direct-browser-access header). Also the
+                        "live data file": a File System Access API mirror of every
+                        save into a user-chosen on-disk JSON (survives browser-data
+                        wipes; handle remembered in IndexedDB 'life-org-file';
+                        per-session re-permission surfaces as a Reconnect banner,
+                        and a wiped browser auto-recovers from the file when the
+                        permission is still granted).
 src/lib/ai/provider.ts  AIProvider { complete(promptOrChat) }. StubProvider = offline
                         engine (real heuristic classifier for brain dumps, canned but
                         contract-correct output for everything else, 0.5-1s delay so

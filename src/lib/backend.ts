@@ -76,13 +76,29 @@ class BrowserBackend implements Backend {
   kind = 'browser' as const;
 
   async load(): Promise<PersistedState> {
+    // Best-effort ask for durable storage (protects against automatic
+    // eviction; explicit wipes are covered by the live data file below).
+    try {
+      void navigator.storage?.persist?.();
+    } catch {
+      /* not available on this browser */
+    }
+    await initDataFile();
+    let local: Partial<PersistedState> | null = null;
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) return withDefaults(JSON.parse(raw) as Partial<PersistedState>);
+      if (raw) local = JSON.parse(raw) as Partial<PersistedState>;
     } catch {
-      /* corrupted or unavailable storage: fall through to seed */
+      /* corrupted or unavailable storage */
     }
-    return seedState();
+    hadLocalData = !!local;
+    // If the browser was wiped but a live data file is already readable,
+    // recover from the file without any user action.
+    if (!local) {
+      const fromFile = await readDataFile();
+      if (fromFile) return withDefaults(fromFile);
+    }
+    return local ? withDefaults(local) : seedState();
   }
 
   async save(patch: Partial<PersistedState>): Promise<void> {
@@ -93,7 +109,9 @@ class BrowserBackend implements Backend {
     } catch {
       /* start fresh */
     }
-    localStorage.setItem(LS_KEY, JSON.stringify({ ...current, ...patch }));
+    const full = { ...current, ...patch };
+    localStorage.setItem(LS_KEY, JSON.stringify(full));
+    scheduleDataFileWrite(full as PersistedState);
   }
 
   aiComplete(payload: AICompletePayload): Promise<string> {
@@ -158,4 +176,194 @@ async function openaiComplete(payload: AICompletePayload): Promise<string> {
 export function createBackend(): Backend {
   if (window.lifeOS) return new ElectronBackend(window.lifeOS);
   return new BrowserBackend();
+}
+
+/* ---------------- live data file (browser mode, Chromium only) ----------------
+ * Browser site data can be wiped by cleanup tools ("clear cookies and site
+ * data", CCleaner). The live data file mirrors every save into a real file the
+ * user picked on disk via the File System Access API, so a wipe costs nothing:
+ * the file survives and can be reconnected or restored. The file handle is
+ * remembered in IndexedDB; browsers usually re-ask permission per session,
+ * which surfaces in the UI as a one-click "Reconnect" banner. */
+
+type Perm = 'granted' | 'denied' | 'prompt';
+
+interface DataFileHandle {
+  readonly name: string;
+  queryPermission(d: { mode: 'readwrite' }): Promise<Perm>;
+  requestPermission(d: { mode: 'readwrite' }): Promise<Perm>;
+  getFile(): Promise<File>;
+  createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }>;
+}
+
+declare global {
+  interface Window {
+    showSaveFilePicker?(opts?: {
+      suggestedName?: string;
+      types?: { description: string; accept: Record<string, string[]> }[];
+    }): Promise<DataFileHandle>;
+  }
+}
+
+const IDB_NAME = 'life-org-file';
+const IDB_STORE = 'kv';
+const IDB_KEY = 'data-file-handle';
+
+function openIDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbGet<T>(key: string): Promise<T | undefined> {
+  try {
+    const db = await openIDB();
+    return await new Promise((resolve, reject) => {
+      const rq = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
+      rq.onsuccess = () => resolve(rq.result as T);
+      rq.onerror = () => reject(rq.error);
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+async function idbSet(key: string, value: unknown): Promise<void> {
+  try {
+    const db = await openIDB();
+    await new Promise<void>((resolve, reject) => {
+      const rq = db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(value, key);
+      rq.onsuccess = () => resolve();
+      rq.onerror = () => reject(rq.error);
+    });
+  } catch {
+    /* IndexedDB unavailable: the feature quietly degrades to backups */
+  }
+}
+
+async function idbDelete(key: string): Promise<void> {
+  try {
+    const db = await openIDB();
+    await new Promise<void>((resolve, reject) => {
+      const rq = db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).delete(key);
+      rq.onsuccess = () => resolve();
+      rq.onerror = () => reject(rq.error);
+    });
+  } catch {
+    /* nothing to clean up */
+  }
+}
+
+let dataFile: DataFileHandle | null = null;
+let dataFilePerm: Perm = 'prompt';
+let hadLocalData = false;
+
+export function dataFileSupported(): boolean {
+  return typeof window.showSaveFilePicker === 'function' && !window.lifeOS;
+}
+
+export function getDataFileState(): { status: 'off' | 'on' | 'reconnect'; name: string | null } {
+  if (!dataFile) return { status: 'off', name: null };
+  return { status: dataFilePerm === 'granted' ? 'on' : 'reconnect', name: dataFile.name };
+}
+
+/** True when this browser still held saved data at startup (i.e. no wipe). */
+export function hadStoredLocalData(): boolean {
+  return hadLocalData;
+}
+
+async function initDataFile(): Promise<void> {
+  if (!dataFileSupported()) return;
+  const handle = await idbGet<DataFileHandle>(IDB_KEY);
+  if (!handle || typeof handle.queryPermission !== 'function') return;
+  dataFile = handle;
+  try {
+    dataFilePerm = await handle.queryPermission({ mode: 'readwrite' });
+  } catch {
+    dataFilePerm = 'prompt';
+  }
+}
+
+async function readDataFile(): Promise<Partial<PersistedState> | null> {
+  if (!dataFile || dataFilePerm !== 'granted') return null;
+  try {
+    const text = await (await dataFile.getFile()).text();
+    const parsed = JSON.parse(text) as Partial<PersistedState>;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+let writeTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingWrite: PersistedState | null = null;
+
+async function writeNow(state: PersistedState): Promise<void> {
+  if (!dataFile || dataFilePerm !== 'granted') return;
+  try {
+    const w = await dataFile.createWritable();
+    await w.write(JSON.stringify(state, null, 2));
+    await w.close();
+  } catch {
+    /* file busy or moved; localStorage still holds everything */
+  }
+}
+
+function scheduleDataFileWrite(state: PersistedState): void {
+  if (!dataFile || dataFilePerm !== 'granted') return;
+  pendingWrite = state;
+  if (writeTimer) clearTimeout(writeTimer);
+  writeTimer = setTimeout(() => {
+    const s = pendingWrite;
+    pendingWrite = null;
+    if (s) void writeNow(s);
+  }, 800);
+}
+
+/** Immediate mirror of the full current state into the connected file. */
+export function pushDataFile(state: PersistedState): void {
+  void writeNow(state);
+}
+
+/** Ask the user where to keep the live data file, then write to it. */
+export async function connectDataFile(current: PersistedState): Promise<boolean> {
+  if (!window.showSaveFilePicker) return false;
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'Life Organization Data.json',
+      types: [{ description: 'Life Organization data', accept: { 'application/json': ['.json'] } }],
+    });
+    dataFile = handle;
+    dataFilePerm = 'granted';
+    await idbSet(IDB_KEY, handle);
+    await writeNow(current);
+    return true;
+  } catch {
+    return false; // picker dismissed
+  }
+}
+
+/** Re-grant permission on the remembered file. Returns the file's contents so
+ *  the caller can recover from a wiped browser, or null if nothing readable. */
+export async function reconnectDataFile(): Promise<{
+  granted: boolean;
+  fileState: Partial<PersistedState> | null;
+}> {
+  if (!dataFile) return { granted: false, fileState: null };
+  try {
+    dataFilePerm = await dataFile.requestPermission({ mode: 'readwrite' });
+  } catch {
+    dataFilePerm = 'prompt';
+  }
+  if (dataFilePerm !== 'granted') return { granted: false, fileState: null };
+  return { granted: true, fileState: await readDataFile() };
+}
+
+export async function disconnectDataFile(): Promise<void> {
+  dataFile = null;
+  dataFilePerm = 'prompt';
+  await idbDelete(IDB_KEY);
 }

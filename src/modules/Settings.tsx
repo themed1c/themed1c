@@ -243,6 +243,46 @@ export default function Settings() {
         {/* -------- Your data -------- */}
         <Card>
           <CardLabel style={{ marginBottom: 14 }}>Your data</CardLabel>
+
+          {app.dataFileStatus !== 'unsupported' && (
+            <div style={{ marginBottom: 16 }}>
+              {app.dataFileStatus === 'on' ? (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13.5, color: 'var(--text2)' }}>
+                    Live data file is on
+                    {app.dataFileName ? `: saving to ${app.dataFileName}` : ''}
+                  </span>
+                  <GhostButton
+                    onClick={() => void app.disconnectFile()}
+                    style={{ fontSize: 12, padding: '5px 12px' }}
+                  >
+                    Turn off
+                  </GhostButton>
+                </div>
+              ) : app.dataFileStatus === 'reconnect' ? (
+                <GhostButton
+                  onClick={() => void app.reconnectFile()}
+                  style={{ fontSize: 12.5, padding: '7px 16px' }}
+                >
+                  Reconnect your data file
+                </GhostButton>
+              ) : (
+                <GhostButton
+                  onClick={() => void app.connectFile()}
+                  style={{ fontSize: 12.5, padding: '7px 16px' }}
+                >
+                  Keep a live data file
+                </GhostButton>
+              )}
+              <div style={caption}>
+                Recommended. The app keeps a copy of everything in a real file you choose (your
+                Documents folder is a good home). It updates itself as you use the app, and
+                cleanup tools that clear cookies or browser data cannot touch it. If the browser
+                is ever wiped, the app reads the file and everything comes back.
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <GhostButton onClick={saveBackup} style={{ fontSize: 12.5, padding: '7px 16px' }}>
               Save a backup

@@ -203,6 +203,36 @@ const ok = (name, pass, detail = '') => {
   await page.waitForTimeout(600);
   ok('backup restores', /Backup restored/.test(await page.locator('main').innerText()));
 
+  /* ---- live data file: stub the OS picker, confirm the mirror writes ---- */
+  const fsaSupported = await page.evaluate(() => typeof window.showSaveFilePicker === 'function');
+  if (fsaSupported) {
+    await page.evaluate(() => {
+      window.__fileWrites = [];
+      window.showSaveFilePicker = async () => ({
+        name: 'Life Organization Data.json',
+        queryPermission: async () => 'granted',
+        requestPermission: async () => 'granted',
+        getFile: async () =>
+          new File([window.__fileWrites[window.__fileWrites.length - 1] || '{}'], 'd.json'),
+        createWritable: async () => ({
+          async write(d) {
+            window.__fileWrites.push(d);
+          },
+          async close() {},
+        }),
+      });
+    });
+    await page.click('button:has-text("Keep a live data file")');
+    await page.waitForTimeout(500);
+    const liveText = await page.locator('main').innerText();
+    const wrote = await page.evaluate(
+      () => (window.__fileWrites || []).length > 0 && /goals/.test(window.__fileWrites[0]),
+    );
+    ok('live data file connects and mirrors state', /Live data file is on/.test(liveText) && wrote);
+  } else {
+    console.log('SKIP live data file (File System Access API unavailable in this browser)');
+  }
+
   /* ---- persistence of dump across reload ---- */
   await nav('Brain Dump');
   const dumpAfterReload = await page.locator('main').innerText();

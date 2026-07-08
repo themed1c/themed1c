@@ -39,6 +39,8 @@ Everything is stored in a single SQLite file on your machine (no cloud, no accou
 
 Back that file up and you've backed up your life system.
 
+In browser mode (the portable single-file build or `npm run dev`), data lives in the browser's local storage instead. Two protections are built in: **Settings → Your data → Keep a live data file** mirrors every change into a real on-disk JSON file that cookie wipes and cleanup tools (CCleaner and the like) can't touch, with automatic recovery if the browser's copy is ever cleared; and **Save a backup / Restore from backup** gives you portable snapshot files.
+
 ## The modules
 
 | Module | What it does |

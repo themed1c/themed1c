@@ -169,6 +169,35 @@ function Main() {
           {app.hydrated ? <Module key={app.module} /> : null}
         </div>
       </main>
+      {app.hydrated && app.dataFileStatus === 'reconnect' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 14,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 95,
+            display: 'flex',
+            gap: 14,
+            alignItems: 'center',
+            background: 'var(--raised)',
+            border: '1px solid var(--accent-border)',
+            borderRadius: 11,
+            padding: '10px 16px',
+          }}
+        >
+          <span style={{ fontSize: 13, color: 'var(--text2)' }}>
+            Reconnect your data file so it stays up to date.
+          </span>
+          <button
+            className="accent-btn"
+            style={{ borderRadius: 7, padding: '6px 16px', fontSize: 12.5 }}
+            onClick={() => void app.reconnectFile()}
+          >
+            Reconnect
+          </button>
+        </div>
+      )}
       <Toast message={app.err} />
     </div>
   );
