@@ -1,7 +1,8 @@
-import type { CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import { useApp } from '../lib/store';
-import { Card, CardLabel, PageTitle, PageSub } from '../components/ui';
+import { Card, CardLabel, GhostButton, PageTitle, PageSub } from '../components/ui';
 import { FONT_BODY, FONT_NUM } from '../lib/theme';
+import { todayISO } from '../lib/time';
 import type { CoachTone, ProviderKind } from '../lib/types';
 
 const caption: CSSProperties = {
@@ -26,6 +27,43 @@ const TONES: { key: CoachTone; label: string }[] = [
 export default function Settings() {
   const app = useApp();
   const s = app.settings;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dataMsg, setDataMsg] = useState<string | null>(null);
+
+  const saveBackup = () => {
+    const blob = new Blob([JSON.stringify(app.exportData(), null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `life-organization-backup-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setDataMsg('Backup saved to your downloads.');
+  };
+
+  const restoreBackup = async (file: File) => {
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      /* handled below */
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      setDataMsg('That file does not look like a Life Organization backup.');
+      return;
+    }
+    if (!window.confirm('Restoring replaces everything currently in the app with the backup. Continue?')) {
+      setDataMsg(null);
+      return;
+    }
+    setDataMsg(
+      app.importData(parsed)
+        ? 'Backup restored.'
+        : 'That file does not look like a Life Organization backup.',
+    );
+  };
 
   return (
     <section className="fade-up" style={{ maxWidth: 720 }}>
@@ -199,6 +237,41 @@ export default function Settings() {
           <div style={caption}>
             Learned over time, kept on this machine, and folded into everything the engine writes
             for you. Forget anything that stops being true.
+          </div>
+        </Card>
+
+        {/* -------- Your data -------- */}
+        <Card>
+          <CardLabel style={{ marginBottom: 14 }}>Your data</CardLabel>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <GhostButton onClick={saveBackup} style={{ fontSize: 12.5, padding: '7px 16px' }}>
+              Save a backup
+            </GhostButton>
+            <GhostButton
+              onClick={() => fileRef.current?.click()}
+              style={{ fontSize: 12.5, padding: '7px 16px' }}
+            >
+              Restore from backup
+            </GhostButton>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) void restoreBackup(f);
+              }}
+            />
+          </div>
+          {dataMsg && (
+            <div style={{ fontSize: 13, color: 'var(--accent)', marginTop: 12 }}>{dataMsg}</div>
+          )}
+          <div style={caption}>
+            Everything lives on this machine, inside the browser you use for the app. Save a
+            backup file every so often and keep it somewhere safe; restoring one brings back
+            everything exactly as it was, on this computer or a new one.
           </div>
         </Card>
 

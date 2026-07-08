@@ -53,7 +53,7 @@ Back that file up and you've backed up your life system.
 | **Reflection** | Five honest questions each evening; the engine reads them back to you |
 | **Weekly Review** | Wins, failures, habits, time, progress, and recommended changes |
 | **Patterns** | Behavioral patterns you haven't noticed, drawn from your own data |
-| **Settings** | Engine provider and key, learned preferences, coach tone, top-task count, theme |
+| **Settings** | Engine provider and key, learned preferences, backup and restore, coach tone, top-task count, theme |
 
 ## Development
 

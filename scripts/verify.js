@@ -189,6 +189,20 @@ const ok = (name, pass, detail = '') => {
     (settingsText.match(/has learned\n[\s\S]{0,110}/i) || [''])[0].replace(/\n/g, ' | ').slice(0, 140),
   );
 
+  /* ---- backup + restore round trip ---- */
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.click('button:has-text("Save a backup")'),
+  ]);
+  const bkPath = path.join(OUT, 'backup.json');
+  await download.saveAs(bkPath);
+  const bkOk = fs.existsSync(bkPath) && fs.statSync(bkPath).size > 500;
+  ok('backup file downloads', bkOk, bkOk ? `${fs.statSync(bkPath).size} bytes` : 'missing');
+  page.once('dialog', (d) => d.accept());
+  await page.setInputFiles('input[type="file"]', bkPath);
+  await page.waitForTimeout(600);
+  ok('backup restores', /Backup restored/.test(await page.locator('main').innerText()));
+
   /* ---- persistence of dump across reload ---- */
   await nav('Brain Dump');
   const dumpAfterReload = await page.locator('main').innerText();

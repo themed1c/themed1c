@@ -42,6 +42,10 @@ export interface AppContextValue extends PersistedState {
   /** Drop one learned preference (Settings) or wipe the whole list. */
   forgetMemory(index: number): void;
   clearMemory(): void;
+  /** Snapshot of everything persisted, for the backup file. */
+  exportData(): PersistedState;
+  /** Replace all data from a backup file's contents. False if it isn't one. */
+  importData(raw: unknown): boolean;
 
   /** AI actions resolve true on success, false after a failure toast. */
   captureDump(text: string): Promise<boolean>;
@@ -197,6 +201,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const clearMemory = useCallback(() => update({ memory: [] }), [update]);
+
+  const exportData = useCallback((): PersistedState => dataRef.current, []);
+
+  const importData = useCallback(
+    (raw: unknown): boolean => {
+      if (!raw || typeof raw !== 'object') return false;
+      const candidate = raw as Partial<PersistedState>;
+      if (!Array.isArray(candidate.goals) || !candidate.settings) return false;
+      const seed = seedState();
+      const next: PersistedState = {
+        ...seed,
+        ...candidate,
+        settings: { ...seed.settings, ...candidate.settings },
+      };
+      setData(next);
+      persist(next);
+      applyTheme(next.settings.dark);
+      return true;
+    },
+    [persist],
+  );
 
   /* ---------- instant actions ---------- */
   const toggleTheme = useCallback(() => {
@@ -457,6 +482,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateSettings,
     forgetMemory,
     clearMemory,
+    exportData,
+    importData,
     captureDump,
     replanTop,
     regenCascade,
