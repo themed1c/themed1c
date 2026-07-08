@@ -77,6 +77,7 @@ export class StubProvider implements AIProvider {
 
     const p = request;
     if (p.includes('Maintain their private preference list')) return learnedPrefs(p);
+    if (p.includes('Condense the earlier part of this coaching conversation')) return chatSummaryStub(p);
     if (p.includes('Split this brain dump')) return classifyDump(p);
     if (p.includes('highest-impact tasks for today')) return REPLAN_JSON;
     if (p.includes('Rebuild the roadmap for the goal')) return cascadeFor(p);
@@ -118,6 +119,17 @@ function learnedPrefs(prompt: string): string {
   if (!existing.length && !additions.length)
     additions.push('Responds better to one clear next step than a long list.');
   return JSON.stringify([...existing, ...additions].slice(0, 12));
+}
+
+/* ---------- coach summary: offline stand-in for the rolling condensation */
+
+function chatSummaryStub(prompt: string): string {
+  const m = prompt.match(/CURRENT SUMMARY:\n([\s\S]*?)\n\nNEW EXCHANGES:/);
+  const prev = m && m[1].trim() !== '(none yet)' ? m[1].trim() : '';
+  const canned =
+    'They check in most about what to do next and how to handle overwhelm; recurring threads are protecting morning focus, finishing nearly done work, and keeping evenings from dissolving. The coach keeps pointing them back to one concrete next step.';
+  if (prev.includes('one concrete next step')) return prev;
+  return (prev ? prev + ' ' : '') + canned;
 }
 
 /* ---------- brain dump: local heuristic classification ---------- */

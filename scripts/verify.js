@@ -162,8 +162,55 @@ const ok = (name, pass, detail = '') => {
   const strat = await page.locator('main').innerText();
   ok('strategist morning + evening', /01/.test(strat) && /(moved the needle|tomorrow)/i.test(strat));
 
+  /* ---- personalization: add task / habit / schedule / goal / project ---- */
+  await nav('Life Dashboard');
+  await page.click('button:has-text("+ Add a task")');
+  await page.fill('input[placeholder*="What needs doing"]', 'Water the plants');
+  await page.press('input[placeholder*="What needs doing"]', 'Enter');
+  await page.waitForTimeout(300);
+  ok('task added by hand', /Water the plants/.test(await page.locator('main').innerText()));
+
+  await page.click('button:has-text("+ Add a habit")');
+  await page.fill('input[placeholder*="habit to track"]', 'Stretch 10 minutes');
+  await page.press('input[placeholder*="habit to track"]', 'Enter');
+  await page.waitForTimeout(300);
+  ok('habit added by hand', /Stretch 10 minutes/.test(await page.locator('main').innerText()));
+
+  await page.click('button:has-text("+ Add a block")');
+  await page.waitForTimeout(300);
+  ok('schedule block added', /New block/.test(await page.locator('main').innerText()));
+
+  await nav('Goal Center');
+  await page.click('button:has-text("+ Add a goal")');
+  await page.waitForTimeout(300);
+  ok('goal added', /New goal/.test(await page.locator('main').innerText()));
+  page.once('dialog', (d) => d.accept());
+  await page.click('button:has-text("Remove")');
+  await page.waitForTimeout(300);
+  ok('goal removed', !/New goal/.test(await page.locator('main').innerText()));
+
+  await nav('Roadmaps');
+  await page.click('button:has-text("+ Add a project")');
+  await page.waitForTimeout(300);
+  ok('project added', /New project/.test(await page.locator('main').innerText()));
+
+  /* ---- daily history ledger recorded ---- */
+  const hist = await page.evaluate(() => {
+    const raw = localStorage.getItem('life-org-v2');
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed.history || [];
+  });
+  ok(
+    'daily history ledger recording',
+    hist.length >= 1 && Array.isArray(hist[hist.length - 1].habitsDone),
+    `days: ${hist.length}, today habits done: ${hist.length ? hist[hist.length - 1].habitsDone.length : 0}`,
+  );
+
   /* ---- settings persistence ---- */
   await nav('Settings');
+  await page.fill('textarea', 'I run a small bakery and train for triathlons.');
+  await page.press('textarea', 'Tab');
+  await page.waitForTimeout(200);
   await page.click('button:has-text("Supportive")');
   await page.waitForTimeout(300);
   await page.reload({ waitUntil: 'networkidle' });
@@ -177,6 +224,9 @@ const ok = (name, pass, detail = '') => {
     return st.borderColor;
   });
   ok('settings tone persisted across reload', supportiveSelected !== 'missing', `border: ${supportiveSelected}`);
+
+  const aboutVal = await page.inputValue('textarea');
+  ok('about you persisted across reload', /bakery/.test(aboutVal));
 
   /* ---- engine options include OpenAI ---- */
   const settingsText = await page.locator('main').innerText();
@@ -237,6 +287,35 @@ const ok = (name, pass, detail = '') => {
   await nav('Brain Dump');
   const dumpAfterReload = await page.locator('main').innerText();
   ok('dump items persisted across reload', /landlord/i.test(dumpAfterReload));
+
+  /* ---- coach summarization: seed a long chat, next reply condenses it ---- */
+  await page.evaluate(() => {
+    const parsed = JSON.parse(localStorage.getItem('life-org-v2'));
+    const filler = [];
+    for (let i = 0; i < 17; i++) {
+      filler.push({ role: 'user', content: `Check-in number ${i + 1} about my day.` });
+      filler.push({ role: 'assistant', content: `Reply ${i + 1}: keep the next step small.` });
+    }
+    parsed.chat = filler;
+    parsed.chatSummarized = 0;
+    parsed.chatSummary = '';
+    localStorage.setItem('life-org-v2', JSON.stringify(parsed));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(800);
+  await nav('Coach');
+  await page.fill('input.field', 'What should I focus on next?');
+  await page.press('input.field', 'Enter');
+  await page.waitForTimeout(4500);
+  const summarized = await page.evaluate(() => {
+    const parsed = JSON.parse(localStorage.getItem('life-org-v2'));
+    return { n: parsed.chatSummarized, len: (parsed.chatSummary || '').length };
+  });
+  ok(
+    'coach history condensed in background',
+    summarized.n > 0 && summarized.len > 40,
+    `covers ${summarized.n} messages, summary ${summarized.len} chars`,
+  );
 
   /* ---- no em dashes anywhere in UI text ---- */
   let empty = 0;

@@ -71,6 +71,34 @@ export default function Settings() {
       <PageSub>How the engine behaves. Everything stays on this machine.</PageSub>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* -------- About you -------- */}
+        <Card>
+          <CardLabel style={{ marginBottom: 12 }}>About you</CardLabel>
+          <textarea
+            value={s.aboutMe}
+            onChange={(e) => app.updateSettings({ aboutMe: e.target.value })}
+            onBlur={(e) => app.updateSettings({ aboutMe: e.target.value })}
+            placeholder="A few sentences about who you are: your work, your people, what your days look like, what you are building toward."
+            style={{
+              width: '100%',
+              minHeight: 84,
+              background: 'var(--raised)',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              outline: 'none',
+              resize: 'vertical',
+              color: 'var(--text)',
+              fontSize: 14,
+              lineHeight: 1.6,
+              padding: '12px 14px',
+            }}
+          />
+          <div style={caption}>
+            The engine reads this with everything else it knows, so plans, reviews, and coaching
+            fit your actual life. Yours to change anytime; stays on this machine.
+          </div>
+        </Card>
+
         {/* -------- Engine -------- */}
         <Card>
           <CardLabel style={{ marginBottom: 14 }}>Engine</CardLabel>

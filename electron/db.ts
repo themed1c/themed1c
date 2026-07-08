@@ -182,6 +182,9 @@ export function openDatabase(userDataDir: string): DBHandle {
       morning: getKV('morning') ?? [],
       eveningText: getKV('eveningText') ?? '',
       memory: getKV('memory') ?? [],
+      history: getKV('history') ?? [],
+      chatSummary: getKV('chatSummary') ?? '',
+      chatSummarized: getKV('chatSummarized') ?? 0,
       settings: getKV('settings') ?? {},
     };
   }
@@ -308,6 +311,9 @@ export function openDatabase(userDataDir: string): DBHandle {
       if (patch.morning) setKV('morning', patch.morning);
       if (patch.eveningText !== undefined) setKV('eveningText', patch.eveningText);
       if (patch.memory) setKV('memory', patch.memory);
+      if (patch.history) setKV('history', patch.history);
+      if (patch.chatSummary !== undefined) setKV('chatSummary', patch.chatSummary);
+      if (patch.chatSummarized !== undefined) setKV('chatSummarized', patch.chatSummarized);
       if (patch.settings) setKV('settings', patch.settings);
       setKV('initialized', true);
       db.exec('COMMIT');

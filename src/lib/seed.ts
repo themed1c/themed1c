@@ -160,6 +160,9 @@ export function seedState(): PersistedState {
     ],
     eveningText: 'Run the debrief tonight: it reads today’s tasks, habits, and reflection, then reshapes tomorrow.',
     memory: [],
+    history: [],
+    chatSummary: '',
+    chatSummarized: 0,
     settings: {
       dark: false,
       coachTone: 'direct',
@@ -169,6 +172,7 @@ export function seedState(): PersistedState {
       model: 'claude-opus-4-8',
       openaiApiKey: '',
       openaiModel: 'gpt-5.1',
+      aboutMe: '',
     },
   };
 }

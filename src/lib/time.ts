@@ -47,6 +47,16 @@ export function relativeWhen(ts: number, now = Date.now()): string {
   return `${days}d ago`;
 }
 
+/** Minutes since midnight for a 12-hour time like "6:30 PM"; unparsable
+ *  strings sort to the end so hand-typed schedule rows never vanish. */
+export function timeToMinutes(t: string): number {
+  const m = t.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  let h = parseInt(m[1], 10) % 12;
+  if (/pm/i.test(m[3])) h += 12;
+  return h * 60 + (m[2] ? parseInt(m[2], 10) : 0);
+}
+
 /** Local calendar date (yyyy-mm-dd). Never UTC: an evening reflection after
  *  7 PM in the Americas must not land on tomorrow's date. */
 export function todayISO(d = new Date()): string {

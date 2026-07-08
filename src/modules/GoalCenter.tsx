@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useApp, type CascadeLevel as Level } from '../lib/store';
-import { Card, CardLabel, GhostButton, Num, PageSub, PageTitle, Track } from '../components/ui';
-import { FONT_BODY } from '../lib/theme';
-import type { Goal } from '../lib/types';
+import {
+  Card, CardLabel, GhostButton, InlineText, Num, PageSub, PageTitle, Track,
+} from '../components/ui';
+import { FONT_BODY, FONT_NUM } from '../lib/theme';
+import { AREAS, type Goal } from '../lib/types';
 
 interface CascadeRow {
   key: Level;
@@ -40,7 +42,12 @@ export default function GoalCenter() {
       return;
     }
     const text = draft.trim();
-    if (text) app.updateGoalItem(sel.id, editing.level, editing.index, text);
+    if (text) {
+      app.updateGoalItem(sel.id, editing.level, editing.index, text);
+    } else if (editing.level !== 'vision') {
+      // Clearing a line removes it; the vision line always stays.
+      app.removeGoalItem(sel.id, editing.level, editing.index);
+    }
     setEditing(null);
   };
 
@@ -85,6 +92,9 @@ export default function GoalCenter() {
               </button>
             );
           })}
+          <GhostButton onClick={app.addGoal} style={{ padding: '10px 14px', fontSize: 12.5 }}>
+            + Add a goal
+          </GhostButton>
         </div>
 
         {/* Cascade panel */}
@@ -98,20 +108,73 @@ export default function GoalCenter() {
                 marginBottom: 20,
               }}
             >
-              <div>
-                <CardLabel size={10} style={{ letterSpacing: '0.1em' }}>
-                  {sel.area}
-                </CardLabel>
-                <div style={{ fontSize: 19, fontWeight: 600, marginTop: 4 }}>{sel.title}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <button
+                  title="Change life area"
+                  onClick={() =>
+                    app.updateGoalMeta(sel.id, {
+                      area: AREAS[(AREAS.indexOf(sel.area) + 1) % AREAS.length],
+                    })
+                  }
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <CardLabel size={10} style={{ letterSpacing: '0.1em' }}>
+                    {sel.area}
+                  </CardLabel>
+                </button>
+                <div style={{ fontSize: 19, fontWeight: 600, marginTop: 4 }}>
+                  <InlineText
+                    value={sel.title}
+                    onCommit={(title) => title && app.updateGoalMeta(sel.id, { title })}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
+                  <InlineText
+                    value={String(sel.progress)}
+                    title="Click to edit percent complete"
+                    onCommit={(v) => {
+                      const n = parseInt(v, 10);
+                      if (!Number.isNaN(n)) {
+                        app.updateGoalMeta(sel.id, { progress: Math.max(0, Math.min(100, n)) });
+                      }
+                    }}
+                    style={{
+                      fontFamily: FONT_NUM,
+                      fontWeight: 500,
+                      fontSize: 12,
+                      color: 'var(--muted)',
+                      minWidth: 18,
+                      width: 34,
+                      display: 'inline-block',
+                    }}
+                  />
+                  <Num size={12} color="var(--muted)">
+                    % complete
+                  </Num>
+                </div>
               </div>
-              <GhostButton
-                onClick={() => {
-                  if (!app.busy.cascade) void app.regenCascade();
-                }}
-                style={{ flexShrink: 0 }}
-              >
-                {app.busy.cascade ? 'Recalculating…' : 'Recalculate roadmap'}
-              </GhostButton>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <GhostButton
+                  onClick={() => {
+                    if (window.confirm(`Remove the goal "${sel.title}"?`)) app.deleteGoal(sel.id);
+                  }}
+                  style={{ fontSize: 12, padding: '6px 12px' }}
+                >
+                  Remove
+                </GhostButton>
+                <GhostButton
+                  onClick={() => {
+                    if (!app.busy.cascade) void app.regenCascade();
+                  }}
+                >
+                  {app.busy.cascade ? 'Recalculating…' : 'Recalculate roadmap'}
+                </GhostButton>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -185,6 +248,16 @@ export default function GoalCenter() {
                             </div>
                           );
                         })}
+                        {lvl.key !== 'vision' && (
+                          <button
+                            className="row-x"
+                            title="Add a line to this level"
+                            onClick={() => app.addGoalItem(sel.id, lvl.key as Exclude<Level, 'vision'>)}
+                            style={{ alignSelf: 'flex-start', fontSize: 12, color: 'var(--faint)' }}
+                          >
+                            + add
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

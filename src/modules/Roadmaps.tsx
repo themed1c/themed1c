@@ -1,15 +1,23 @@
 import { useApp } from '../lib/store';
-import { Card, CardLabel, Num, PageSub, PageTitle } from '../components/ui';
-import { FONT_LABEL } from '../lib/theme';
+import { Card, CardLabel, GhostButton, InlineText, Num, PageSub, PageTitle } from '../components/ui';
+import { FONT_LABEL, FONT_NUM } from '../lib/theme';
 import type { Project } from '../lib/types';
 
-function MilestoneMap({ project }: { project: Project }) {
+function MilestoneMap({
+  project,
+  onSetCurrent,
+  onRenamePhase,
+}: {
+  project: Project;
+  onSetCurrent(index: number): void;
+  onRenamePhase(index: number, label: string): void;
+}) {
   const { phases, current, color } = project;
   return (
     <div style={{ display: 'flex', margin: '20px 0 22px' }}>
       {phases.map((label, i) => (
         <div
-          key={label + i}
+          key={i}
           style={{
             flex: 1,
             display: 'flex',
@@ -32,6 +40,8 @@ function MilestoneMap({ project }: { project: Project }) {
             />
           )}
           <span
+            title="Click to make this the current phase"
+            onClick={() => onSetCurrent(i)}
             style={{
               width: 10,
               height: 10,
@@ -40,9 +50,13 @@ function MilestoneMap({ project }: { project: Project }) {
               border: `2px solid ${i <= current ? color : 'var(--box)'}`,
               position: 'relative',
               zIndex: 1,
+              cursor: 'pointer',
             }}
           />
-          <span
+          <InlineText
+            value={label}
+            onCommit={(next) => onRenamePhase(i, next)}
+            title="Click to rename; clear to remove"
             style={{
               fontFamily: FONT_LABEL,
               fontSize: 10.5,
@@ -55,9 +69,7 @@ function MilestoneMap({ project }: { project: Project }) {
               textOverflow: 'ellipsis',
               width: '100%',
             }}
-          >
-            {label}
-          </span>
+          />
         </div>
       ))}
     </div>
@@ -67,10 +79,29 @@ function MilestoneMap({ project }: { project: Project }) {
 export default function Roadmaps() {
   const app = useApp();
 
+  const setCurrent = (p: Project, index: number) => app.updateProject(p.id, { current: index });
+
+  const renamePhase = (p: Project, index: number, label: string) => {
+    if (label) {
+      app.updateProject(p.id, {
+        phases: p.phases.map((ph, i) => (i === index ? label : ph)),
+      });
+      return;
+    }
+    if (p.phases.length <= 2) return; // a roadmap needs at least two phases
+    const phases = p.phases.filter((_, i) => i !== index);
+    app.updateProject(p.id, {
+      phases,
+      current: Math.min(p.current > index ? p.current - 1 : p.current, phases.length - 1),
+    });
+  };
+
   return (
     <section className="fade-up">
       <PageTitle>Roadmaps</PageTitle>
-      <PageSub>Where every project stands, and what's in its way.</PageSub>
+      <PageSub>
+        Where every project stands, and what's in its way. Click any detail to change it.
+      </PageSub>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {app.projects.map((p) => (
           <Card key={p.id}>
@@ -80,11 +111,36 @@ export default function Roadmaps() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: 4,
+                gap: 10,
               }}
             >
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{p.name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Num size={12}>{p.pct}%</Num>
+              <div style={{ fontSize: 16, fontWeight: 600, flex: 1, minWidth: 0 }}>
+                <InlineText
+                  value={p.name}
+                  onCommit={(name) => name && app.updateProject(p.id, { name })}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                  <InlineText
+                    value={String(p.pct)}
+                    title="Click to edit percent complete"
+                    onCommit={(v) => {
+                      const n = parseInt(v, 10);
+                      if (!Number.isNaN(n)) {
+                        app.updateProject(p.id, { pct: Math.max(0, Math.min(100, n)) });
+                      }
+                    }}
+                    style={{
+                      fontFamily: FONT_NUM,
+                      fontWeight: 500,
+                      fontSize: 12,
+                      color: 'var(--muted)',
+                      minWidth: 14,
+                    }}
+                  />
+                  <Num size={12}>%</Num>
+                </span>
                 <span
                   style={{
                     fontFamily: FONT_LABEL,
@@ -99,13 +155,39 @@ export default function Roadmaps() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {p.stage}
+                  <InlineText
+                    value={p.stage}
+                    onCommit={(stage) => stage && app.updateProject(p.id, { stage })}
+                  />
                 </span>
+                <button
+                  className="row-x"
+                  title="Remove project"
+                  onClick={() => {
+                    if (window.confirm(`Remove the project "${p.name}"?`)) app.deleteProject(p.id);
+                  }}
+                >
+                  ×
+                </button>
               </div>
             </div>
-            <MilestoneMap project={p} />
+            <MilestoneMap
+              project={p}
+              onSetCurrent={(i) => setCurrent(p, i)}
+              onRenamePhase={(i, label) => renamePhase(p, i, label)}
+            />
+            <div style={{ margin: '-14px 0 16px' }}>
+              <button
+                className="row-x"
+                title="Add a phase at the end"
+                onClick={() => app.updateProject(p.id, { phases: [...p.phases, 'New phase'] })}
+                style={{ fontSize: 11, color: 'var(--faint)' }}
+              >
+                + phase
+              </button>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 18px' }}>
-              {p.fields.map((f) => (
+              {p.fields.map((f, fi) => (
                 <div key={f.k}>
                   <CardLabel
                     size={10}
@@ -114,12 +196,33 @@ export default function Roadmaps() {
                   >
                     {f.k}
                   </CardLabel>
-                  <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>{f.v}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>
+                    <InlineText
+                      value={f.v}
+                      onCommit={(v) =>
+                        app.updateProject(p.id, {
+                          fields: p.fields.map((x, i) => (i === fi ? { ...x, v: v || '-' } : x)),
+                        })
+                      }
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           </Card>
         ))}
+        <Card
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 180,
+          }}
+        >
+          <GhostButton onClick={app.addProject} style={{ fontSize: 13, padding: '10px 20px' }}>
+            + Add a project
+          </GhostButton>
+        </Card>
       </div>
     </section>
   );

@@ -1,18 +1,20 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AIProvider, DumpItem, DumpType, Goal, MorningAction, PersistedState,
-  Reflection, Settings, TopTask, WeeklyReview,
+  AIProvider, DumpItem, DumpType, Goal, MorningAction, PersistedState, Project,
+  Reflection, ScheduleItem, Settings, TopTask, WeeklyReview,
 } from './types';
+import { AREAS } from './types';
+import { historyEntryFor, upsertHistory } from './history';
 import { clean, parseJSON, uid } from './clean';
 import {
   connectDataFile, createBackend, dataFileSupported, disconnectDataFile,
   getDataFileState, hadStoredLocalData, pushDataFile, reconnectDataFile,
 } from './backend';
-import { seedState } from './seed';
+import { PASTELS, seedState } from './seed';
 import { AnthropicProvider, OpenAIProvider, StubProvider } from './ai/provider';
 import { buildContext, prompts, scheduleSummary, toneInstruction } from './ai/prompts';
 import { applyTheme } from './theme';
-import { monthDay, todayISO } from './time';
+import { monthDay, timeToMinutes, todayISO } from './time';
 
 export type ModuleKey =
   | 'dashboard' | 'dump' | 'vault' | 'goals' | 'roadmaps' | 'strategist'
@@ -42,6 +44,26 @@ export interface AppContextValue extends PersistedState {
   toggleHabit(id: string): void;
   updateGoalItem(goalId: string, level: CascadeLevel, index: number, text: string): void;
   updateSettings(patch: Partial<Settings>): void;
+
+  /* Everything below makes the app the user's own: full add/edit/delete for
+   * goals, tasks, habits, schedule, and projects. */
+  addGoal(): void;
+  deleteGoal(id: string): void;
+  updateGoalMeta(id: string, patch: Partial<Pick<Goal, 'title' | 'area' | 'progress'>>): void;
+  addGoalItem(goalId: string, level: Exclude<CascadeLevel, 'vision'>): void;
+  removeGoalItem(goalId: string, level: Exclude<CascadeLevel, 'vision'>, index: number): void;
+  addTask(text: string): void;
+  deleteTask(id: string): void;
+  cycleTaskArea(id: string): void;
+  addHabit(name: string): void;
+  renameHabit(id: string, name: string): void;
+  deleteHabit(id: string): void;
+  addScheduleItem(): void;
+  updateScheduleItem(id: string, patch: Partial<Omit<ScheduleItem, 'id'>>): void;
+  deleteScheduleItem(id: string): void;
+  addProject(): void;
+  updateProject(id: string, patch: Partial<Omit<Project, 'id'>>): void;
+  deleteProject(id: string): void;
   /** Drop one learned preference (Settings) or wipe the whole list. */
   forgetMemory(index: number): void;
   clearMemory(): void;
@@ -140,6 +162,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persist(patch);
     },
     [persist],
+  );
+
+  /** Like update(), but also refreshes today's entry in the daily ledger from
+   *  the state being committed. Use for anything the ledger measures. */
+  const updateWithHistory = useCallback(
+    (patch: Partial<PersistedState>) => {
+      const next = { ...dataRef.current, ...patch };
+      const history = upsertHistory(next.history, historyEntryFor(next));
+      update({ ...patch, history });
+    },
+    [update],
   );
 
   const fail = useCallback(() => {
@@ -291,17 +324,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const toggleTask = useCallback(
     (id: string) => {
-      update({
+      updateWithHistory({
         topTasks: dataRef.current.topTasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
       });
     },
-    [update],
+    [updateWithHistory],
   );
 
   const toggleHabit = useCallback(
     (id: string) => {
       const today = todayISO();
-      update({
+      updateWithHistory({
         habits: dataRef.current.habits.map((h) => {
           if (h.id !== id) return h;
           return h.done
@@ -309,6 +342,197 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             : { ...h, done: true, streak: h.streak + 1, lastDone: today };
         }),
       });
+    },
+    [updateWithHistory],
+  );
+
+  /* ---------- editing: goals, tasks, habits, schedule, projects ---------- */
+
+  const addGoal = useCallback(() => {
+    const g: Goal = {
+      id: uid(),
+      area: 'School',
+      title: 'New goal',
+      progress: 0,
+      vision: 'What does done look like, in one sentence?',
+      year: ['First milestone this year'],
+      quarter: ['First milestone this quarter'],
+      month: ['First step this month'],
+      week: ['First step this week'],
+      today: ['One small step today'],
+    };
+    update({ goals: [...dataRef.current.goals, g] });
+    setSelGoal(g.id);
+  }, [update]);
+
+  const deleteGoal = useCallback(
+    (id: string) => {
+      const goals = dataRef.current.goals.filter((g) => g.id !== id);
+      update({ goals });
+      if (selGoal === id) setSelGoal(goals[0]?.id ?? '');
+    },
+    [update, selGoal],
+  );
+
+  const updateGoalMeta = useCallback(
+    (id: string, patch: Partial<Pick<Goal, 'title' | 'area' | 'progress'>>) => {
+      update({
+        goals: dataRef.current.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+      });
+    },
+    [update],
+  );
+
+  const addGoalItem = useCallback(
+    (goalId: string, level: Exclude<CascadeLevel, 'vision'>) => {
+      update({
+        goals: dataRef.current.goals.map((g) =>
+          g.id === goalId ? { ...g, [level]: [...g[level], 'New step'] } : g,
+        ),
+      });
+    },
+    [update],
+  );
+
+  const removeGoalItem = useCallback(
+    (goalId: string, level: Exclude<CascadeLevel, 'vision'>, index: number) => {
+      update({
+        goals: dataRef.current.goals.map((g) =>
+          g.id === goalId ? { ...g, [level]: g[level].filter((_, i) => i !== index) } : g,
+        ),
+      });
+    },
+    [update],
+  );
+
+  const addTask = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      updateWithHistory({
+        topTasks: [
+          ...dataRef.current.topTasks,
+          { id: uid(), text: trimmed, area: 'School', done: false },
+        ],
+      });
+    },
+    [updateWithHistory],
+  );
+
+  const deleteTask = useCallback(
+    (id: string) => {
+      updateWithHistory({ topTasks: dataRef.current.topTasks.filter((t) => t.id !== id) });
+    },
+    [updateWithHistory],
+  );
+
+  const cycleTaskArea = useCallback(
+    (id: string) => {
+      update({
+        topTasks: dataRef.current.topTasks.map((t) =>
+          t.id === id ? { ...t, area: AREAS[(AREAS.indexOf(t.area) + 1) % AREAS.length] } : t,
+        ),
+      });
+    },
+    [update],
+  );
+
+  const addHabit = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      updateWithHistory({
+        habits: [
+          ...dataRef.current.habits,
+          { id: uid(), name: trimmed, streak: 0, done: false, lastDone: null },
+        ],
+      });
+    },
+    [updateWithHistory],
+  );
+
+  const renameHabit = useCallback(
+    (id: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      updateWithHistory({
+        habits: dataRef.current.habits.map((h) => (h.id === id ? { ...h, name: trimmed } : h)),
+      });
+    },
+    [updateWithHistory],
+  );
+
+  const deleteHabit = useCallback(
+    (id: string) => {
+      updateWithHistory({ habits: dataRef.current.habits.filter((h) => h.id !== id) });
+    },
+    [updateWithHistory],
+  );
+
+  const sortSchedule = (items: ScheduleItem[]): ScheduleItem[] =>
+    [...items].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+
+  const addScheduleItem = useCallback(() => {
+    update({
+      schedule: [
+        ...dataRef.current.schedule,
+        { id: uid(), time: '9:00 AM', label: 'New block', tag: 'Plan' },
+      ],
+    });
+  }, [update]);
+
+  const updateScheduleItem = useCallback(
+    (id: string, patch: Partial<Omit<ScheduleItem, 'id'>>) => {
+      update({
+        schedule: sortSchedule(
+          dataRef.current.schedule.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+        ),
+      });
+    },
+    [update],
+  );
+
+  const deleteScheduleItem = useCallback(
+    (id: string) => {
+      update({ schedule: dataRef.current.schedule.filter((s) => s.id !== id) });
+    },
+    [update],
+  );
+
+  const addProject = useCallback(() => {
+    const d = dataRef.current;
+    const p: Project = {
+      id: uid(),
+      name: 'New project',
+      stage: 'Planning',
+      pct: 0,
+      phases: ['Plan', 'Build', 'Finish'],
+      current: 0,
+      color: PASTELS[d.projects.length % PASTELS.length][0],
+      fields: [
+        { k: 'Next milestone', v: 'Click to edit' },
+        { k: 'Est. completion', v: 'Click to edit' },
+        { k: 'Dependencies', v: 'Click to edit' },
+        { k: 'Risks', v: 'Click to edit' },
+        { k: 'Skills needed', v: 'Click to edit' },
+        { k: 'Resources', v: 'Click to edit' },
+      ],
+    };
+    update({ projects: [...d.projects, p] });
+  }, [update]);
+
+  const updateProject = useCallback(
+    (id: string, patch: Partial<Omit<Project, 'id'>>) => {
+      update({
+        projects: dataRef.current.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+      });
+    },
+    [update],
+  );
+
+  const deleteProject = useCallback(
+    (id: string) => {
+      update({ projects: dataRef.current.projects.filter((p) => p.id !== id) });
     },
     [update],
   );
@@ -359,13 +583,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           snippet: i.text,
           createdAt: now,
         }));
-        update({
+        updateWithHistory({
           dumpItems: [...items, ...d.dumpItems],
           habits: newHabits.length ? [...d.habits, ...newHabits] : d.habits,
           vault: [...newNotes, ...d.vault],
         });
       }),
-    [aiAction, provider, update],
+    [aiAction, provider, updateWithHistory],
   );
 
   const replanTop = useCallback(
@@ -382,9 +606,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           done: false,
         }));
         if (!topTasks.length) throw new Error('empty replan');
-        update({ topTasks });
+        updateWithHistory({ topTasks });
       }),
-    [aiAction, provider, context, update],
+    [aiAction, provider, context, updateWithHistory],
   );
 
   const regenCascade = useCallback(
@@ -441,10 +665,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           snippet: answers.filter(Boolean).join(' · ').slice(0, 140) || out.slice(0, 140),
           createdAt: Date.now(),
         };
-        update({ reflections, vault: [journal, ...d.vault] });
+        updateWithHistory({ reflections, vault: [journal, ...d.vault] });
         learnQuietly('tonight’s reflection', answers.filter(Boolean).join('\n'));
       }),
-    [aiAction, provider, context, tone, update, learnQuietly],
+    [aiAction, provider, context, tone, updateWithHistory, learnQuietly],
   );
 
   const genWeekly = useCallback(
@@ -489,6 +713,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [aiAction, provider, context, tone, update],
   );
 
+  /** Rolls chat messages beyond the live window into a running summary so the
+   *  coach stays cheap and sharp over months. Invisible, best-effort. */
+  const summarizeRef = useRef(false);
+  const maybeSummarizeChat = useCallback(
+    (chatNow: PersistedState['chat']) => {
+      const TRIGGER = 30; // live messages before we condense
+      const KEEP = 10; // recent messages always sent verbatim
+      const d = dataRef.current;
+      const covered = Math.max(0, Math.min(d.chatSummarized, chatNow.length));
+      if (chatNow.length - covered < TRIGGER || summarizeRef.current) return;
+      summarizeRef.current = true;
+      const upTo = chatNow.length - KEEP;
+      const turns = chatNow.slice(covered, upTo).map((m) => ({ role: m.role, content: m.content }));
+      void (async () => {
+        try {
+          const out = clean(await provider().complete(prompts.summarizeChat(d.chatSummary, turns)));
+          if (out.trim()) {
+            update({ chatSummary: out.trim().slice(0, 2400), chatSummarized: upTo });
+          }
+        } catch {
+          /* next long chat will try again */
+        } finally {
+          summarizeRef.current = false;
+        }
+      })();
+    },
+    [provider, update],
+  );
+
   const sendChat = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -496,17 +749,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const chat = [...dataRef.current.chat, { role: 'user' as const, content: trimmed }];
       update({ chat });
       await aiAction('chat', async () => {
+        const d = dataRef.current;
+        // Send the summary plus only the messages it does not already cover.
+        const covered = Math.max(0, Math.min(d.chatSummarized, chat.length - 1));
+        const live = chat.slice(covered);
         const reply = clean(
           await provider().complete({
-            system: prompts.coachSystem(context(), tone()),
-            messages: chat.map((m) => ({ role: m.role, content: m.content })),
+            system: prompts.coachSystem(context(), tone(), d.chatSummary),
+            messages: live.map((m) => ({ role: m.role, content: m.content })),
           }),
         );
-        update({ chat: [...dataRef.current.chat, { role: 'assistant', content: reply }] });
+        const chatWithReply = [...dataRef.current.chat, { role: 'assistant' as const, content: reply }];
+        update({ chat: chatWithReply });
         learnQuietly('a coach conversation', `Them: ${trimmed}\nCoach: ${reply}`);
+        maybeSummarizeChat(chatWithReply);
       });
     },
-    [aiAction, provider, context, tone, update, learnQuietly],
+    [aiAction, provider, context, tone, update, learnQuietly, maybeSummarizeChat],
   );
 
   /* ---------- derived ---------- */
@@ -530,6 +789,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleHabit,
     updateGoalItem,
     updateSettings,
+    addGoal,
+    deleteGoal,
+    updateGoalMeta,
+    addGoalItem,
+    removeGoalItem,
+    addTask,
+    deleteTask,
+    cycleTaskArea,
+    addHabit,
+    renameHabit,
+    deleteHabit,
+    addScheduleItem,
+    updateScheduleItem,
+    deleteScheduleItem,
+    addProject,
+    updateProject,
+    deleteProject,
     forgetMemory,
     clearMemory,
     exportData,

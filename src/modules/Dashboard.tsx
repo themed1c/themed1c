@@ -1,6 +1,8 @@
 import { useApp } from '../lib/store';
-import { Card, CardLabel, CheckSquare, Chip, GhostButton, Num, Track } from '../components/ui';
-import { FONT_LABEL } from '../lib/theme';
+import {
+  AddRow, Card, CardLabel, CheckSquare, Chip, GhostButton, InlineText, Num, Track,
+} from '../components/ui';
+import { FONT_LABEL, FONT_NUM } from '../lib/theme';
 import { dateLong, greeting } from '../lib/time';
 import { computeAreaScores, focusScore } from '../lib/scores';
 import { PASTELS } from '../lib/seed';
@@ -157,7 +159,7 @@ export default function Dashboard() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {app.topTasks.map((t, i) => (
-                <button key={t.id} className="task-row" onClick={() => app.toggleTask(t.id)}>
+                <div key={t.id} className="task-row" onClick={() => app.toggleTask(t.id)}>
                   <Num size={13} color="var(--accent)" style={{ width: 16 }}>
                     {i + 1}
                   </Num>
@@ -171,15 +173,51 @@ export default function Dashboard() {
                   >
                     {t.text}
                   </span>
-                  <Chip>{t.area}</Chip>
+                  <span
+                    title="Change area"
+                    style={{ cursor: 'pointer', flexShrink: 0 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      app.cycleTaskArea(t.id);
+                    }}
+                  >
+                    <Chip>{t.area}</Chip>
+                  </span>
                   <CheckSquare checked={t.done} size={18} />
-                </button>
+                  <button
+                    className="row-x"
+                    title="Remove task"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      app.deleteTask(t.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
+              <AddRow
+                label="+ Add a task"
+                placeholder="What needs doing? Enter to add."
+                onAdd={app.addTask}
+              />
             </div>
           </Card>
 
           <Card>
-            <CardLabel style={{ marginBottom: 14 }}>Today's schedule</CardLabel>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+              }}
+            >
+              <CardLabel>Today's schedule</CardLabel>
+              <GhostButton onClick={app.addScheduleItem} style={{ padding: '4px 10px', fontSize: 11.5 }}>
+                + Add a block
+              </GhostButton>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {app.schedule.map((s) => (
                 <div
@@ -192,21 +230,44 @@ export default function Dashboard() {
                     borderBottom: '1px solid var(--line)',
                   }}
                 >
-                  <Num size={12} color="var(--faint)" style={{ width: 66 }}>
-                    {s.time}
-                  </Num>
-                  <span style={{ flex: 1, fontSize: 14, color: 'var(--text2)' }}>{s.label}</span>
-                  <span
+                  <InlineText
+                    value={s.time}
+                    onCommit={(time) => time && app.updateScheduleItem(s.id, { time })}
+                    title="Click to edit, like 6:30 PM"
+                    style={{
+                      width: 66,
+                      flexShrink: 0,
+                      fontFamily: FONT_NUM,
+                      fontWeight: 500,
+                      fontSize: 12,
+                      color: 'var(--faint)',
+                    }}
+                  />
+                  <InlineText
+                    value={s.label}
+                    onCommit={(label) => label && app.updateScheduleItem(s.id, { label })}
+                    style={{ flex: 1, fontSize: 14, color: 'var(--text2)' }}
+                  />
+                  <InlineText
+                    value={s.tag}
+                    onCommit={(tag) => tag && app.updateScheduleItem(s.id, { tag })}
                     style={{
                       fontWeight: 500,
                       fontSize: 10.5,
                       letterSpacing: '0.06em',
                       textTransform: 'uppercase',
                       color: 'var(--muted)',
+                      minWidth: 40,
+                      textAlign: 'right',
                     }}
+                  />
+                  <button
+                    className="row-x"
+                    title="Remove block"
+                    onClick={() => app.deleteScheduleItem(s.id)}
                   >
-                    {s.tag}
-                  </span>
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
@@ -243,22 +304,40 @@ export default function Dashboard() {
             <CardLabel style={{ marginBottom: 12 }}>Habits</CardLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {app.habits.map((h) => (
-                <button key={h.id} className="quiet-row" onClick={() => app.toggleHabit(h.id)}>
+                <div key={h.id} className="quiet-row" onClick={() => app.toggleHabit(h.id)}>
                   <CheckSquare checked={h.done} size={17} />
-                  <span
+                  <InlineText
+                    value={h.name}
+                    editOn="dblclick"
+                    onCommit={(name) => name && app.renameHabit(h.id, name)}
                     style={{
                       flex: 1,
                       fontSize: 13.5,
                       color: h.done ? 'var(--faint)' : 'var(--text2)',
                     }}
-                  >
-                    {h.name}
-                  </span>
+                  />
                   <Num size={11} color="var(--faint)">
                     {h.streak}d
                   </Num>
-                </button>
+                  <button
+                    className="row-x"
+                    title="Remove habit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Remove "${h.name}"? Its streak goes with it.`)) {
+                        app.deleteHabit(h.id);
+                      }
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
+              <AddRow
+                label="+ Add a habit"
+                placeholder="A habit to track daily. Enter to add."
+                onAdd={app.addHabit}
+              />
             </div>
           </Card>
 

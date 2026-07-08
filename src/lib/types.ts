@@ -1,5 +1,8 @@
 export type Area = 'Music' | 'School' | 'Work' | 'Fitness';
 
+/** Cycle order for area pickers. */
+export const AREAS: Area[] = ['Music', 'School', 'Work', 'Fitness'];
+
 export type DumpType =
   | 'Task'
   | 'Project'
@@ -112,6 +115,19 @@ export interface MorningAction {
   why: string;
 }
 
+/** One day of lived activity: what actually got done. The ledger the engine
+ *  mines so months of use make it genuinely smarter about the person. */
+export interface HistoryDay {
+  date: string; // yyyy-mm-dd, local
+  focus: number;
+  tasksDone: string[]; // texts of completed top tasks
+  tasksTotal: number;
+  habitsDone: string[]; // names of habits completed
+  habitsTotal: number;
+  captured: number; // brain-dump items captured that day
+  reflected: boolean;
+}
+
 export type CoachTone = 'direct' | 'supportive' | 'analytical';
 export type ProviderKind = 'stub' | 'anthropic' | 'openai';
 
@@ -124,6 +140,9 @@ export interface Settings {
   model: string;
   openaiApiKey: string;
   openaiModel: string;
+  /** The user's own description of who they are and what their life looks
+   *  like; prefixed to every engine call in place of any canned persona. */
+  aboutMe: string;
 }
 
 /** Everything the app persists, as one object. The Electron backend maps
@@ -147,6 +166,12 @@ export interface PersistedState {
   /** Durable preferences the engine learns quietly from reflections and coach
    *  chats, newest understanding as one flat list. Fed into every prompt. */
   memory: string[];
+  /** Daily ledger, ascending by date, one entry per day used. */
+  history: HistoryDay[];
+  /** Running condensation of coach messages older than the live window. */
+  chatSummary: string;
+  /** How many messages at the start of `chat` the summary already covers. */
+  chatSummarized: number;
   settings: Settings;
 }
 

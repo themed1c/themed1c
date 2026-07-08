@@ -230,6 +230,132 @@ export function Chip({
   );
 }
 
+/** Click-to-edit text. Commits on blur or Enter; Escape cancels. Committing
+ *  an empty string is passed through so callers can treat it as delete. */
+export function InlineText({
+  value,
+  onCommit,
+  style,
+  placeholder,
+  title,
+  editOn = 'click',
+}: {
+  value: string;
+  onCommit(next: string): void;
+  style?: React.CSSProperties;
+  placeholder?: string;
+  title?: string;
+  /** Use 'dblclick' inside rows whose single click already does something. */
+  editOn?: 'click' | 'dblclick';
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(value);
+  const cancelled = React.useRef(false);
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onBlur={() => {
+          setEditing(false);
+          if (!cancelled.current && draft.trim() !== value) onCommit(draft.trim());
+          cancelled.current = false;
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            cancelled.current = true;
+            e.currentTarget.blur();
+          }
+        }}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          padding: 0,
+          margin: 0,
+          minWidth: 40,
+          width: '100%',
+          font: 'inherit',
+          color: 'inherit',
+          ...style,
+        }}
+      />
+    );
+  }
+  const startEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft(value);
+    setEditing(true);
+  };
+  return (
+    <span
+      title={title ?? (editOn === 'dblclick' ? 'Double-click to rename' : 'Click to edit')}
+      onClick={editOn === 'click' ? startEdit : undefined}
+      onDoubleClick={editOn === 'dblclick' ? startEdit : undefined}
+      style={{ cursor: editOn === 'click' ? 'text' : undefined, ...style }}
+    >
+      {value || <span style={{ color: 'var(--faint)' }}>{placeholder ?? 'Click to edit'}</span>}
+    </span>
+  );
+}
+
+/** A ghost button that turns into a one-shot input; Enter or blur commits. */
+export function AddRow({
+  label,
+  placeholder,
+  onAdd,
+}: {
+  label: string;
+  placeholder: string;
+  onAdd(text: string): void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [text, setText] = React.useState('');
+  const cancelled = React.useRef(false);
+
+  if (!open) {
+    return (
+      <GhostButton
+        onClick={() => setOpen(true)}
+        style={{ alignSelf: 'flex-start', fontSize: 12, padding: '5px 12px' }}
+      >
+        {label}
+      </GhostButton>
+    );
+  }
+  const commit = () => {
+    if (text.trim()) onAdd(text.trim());
+    setText('');
+    setOpen(false);
+  };
+  return (
+    <input
+      className="field"
+      autoFocus
+      value={text}
+      placeholder={placeholder}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        if (!cancelled.current) commit();
+        cancelled.current = false;
+        setOpen(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur();
+        if (e.key === 'Escape') {
+          cancelled.current = true;
+          e.currentTarget.blur();
+        }
+      }}
+      style={{ padding: '9px 12px', fontSize: 13.5 }}
+    />
+  );
+}
+
 export function Toast({ message }: { message: string | null }) {
   if (!message) return null;
   return (
