@@ -20,9 +20,10 @@ It was implemented from a design handoff produced in Claude's design tool; that 
 
 **Unfinished business:**
 
-1. **Git push is blocked.** The repo `themed1c/themed1c` (branch `claude/readme-instructions-y7xxjt`) rejects pushes with 403: the Claude GitHub App has read-only access. All work is committed locally. Once the owner grants write access (GitHub → Settings → Applications → Installed GitHub Apps → Claude → repository access), push with `git push -u origin claude/readme-instructions-y7xxjt`.
-2. **No packaged installers yet.** `npm run dist` (electron-builder) is configured but unproven: sandboxed build environments may 403 the Electron/NSIS binary downloads from GitHub releases. Run it on a normal machine. Mac targets must be built on macOS.
-3. The user (non-technical) primarily uses the **portable single-file build** (`npm run build:portable` → `dist-portable/index.html`), which runs from a double-click via `file://` with localStorage persistence.
+1. **No packaged installers yet.** `npm run dist` (electron-builder) is configured but unproven: sandboxed build environments may 403 the Electron/NSIS binary downloads from GitHub releases. Run it on a normal machine. Mac targets must be built on macOS.
+2. The user (non-technical) primarily uses the **portable single-file build** (`npm run build:portable` → `dist-portable/index.html`), which runs from a double-click via `file://` with localStorage persistence.
+
+(Resolved 2026-07-08: git push was previously blocked by 403; the owner installed the Claude GitHub App with write access and the full source is pushed to `themed1c/themed1c` on branch `claude/handoff-push-pntrf4`.)
 
 ## Commands
 
@@ -105,4 +106,4 @@ Data flow: module → `useApp()` action → optimistic state update → `backend
 - `life-organization.zip` — full source (git archive of this repo).
 - `Life Organization.html` — the portable single-file build they run at home.
 
-If you are an AI session: work on branch `claude/readme-instructions-y7xxjt`, commit with clear messages, and retry the push (it fails 403 until the GitHub permission is fixed). The user is non-technical; explain changes in plain language and prefer giving them regenerated artifacts (zip / portable HTML) over instructions that require tooling.
+If you are an AI session: work on your session's designated branch (the pushed baseline lives on `claude/handoff-push-pntrf4`), commit with clear messages, and push. The user is non-technical; explain changes in plain language and prefer giving them regenerated artifacts (zip / portable HTML) over instructions that require tooling.
