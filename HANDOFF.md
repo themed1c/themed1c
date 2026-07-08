@@ -14,7 +14,7 @@ It was implemented from a design handoff produced in Claude's design tool; that 
 
 **Complete and verified.** All 11 screens plus Settings are implemented, typecheck clean, build clean, and verified:
 
-- 16/16 end-to-end behavior checks (see Verification below)
+- 18/18 end-to-end behavior checks (see Verification below)
 - SQLite layer round-trip tested (fresh load → seed, save/load equality, partial saves, habit logs)
 - Every screen visually compared against `design/screenshots/` in light AND dark themes; no discrepancies
 
@@ -60,9 +60,13 @@ src/lib/backend.ts      Backend interface; ElectronBackend (IPC) or BrowserBacke
 src/lib/ai/provider.ts  AIProvider { complete(promptOrChat) }. StubProvider = offline
                         engine (real heuristic classifier for brain dumps, canned but
                         contract-correct output for everything else, 0.5-1s delay so
-                        busy states show). AnthropicProvider = Messages API via backend.
+                        busy states show). AnthropicProvider = Messages API via backend
+                        (normalizes chat history: Anthropic requires a leading user
+                        turn and alternating roles). OpenAIProvider = Chat Completions
+                        via backend (settings.openaiApiKey/openaiModel).
 src/lib/ai/prompts.ts   buildContext() (serialized user-data snapshot prefixed to every
-                        call) + the ten prompt contracts, verbatim from the prototype.
+                        call, including learned preferences) + the ten prompt contracts,
+                        verbatim from the prototype, plus prompts.learn() (see below).
 src/lib/scores.ts       area-score model (persisted baselines nudged by live signals)
                         and the focus-score formula min(99, 42 + done*14 + habits*7).
 src/lib/seed.ts         first-run data (matches the design screenshots) + PASTELS.
@@ -78,6 +82,10 @@ src/App.tsx             sidebar shell + module registry.
 
 Data flow: module → `useApp()` action → optimistic state update → `backend.save(partial)` (fire-and-forget). AI actions: busy flag on → `provider().complete(prompt)` → `clean(parseJSON(...))` → state update + persist → busy off; any throw shows the standard toast ("Couldn't reach the engine, try again in a moment.") and leaves prior data untouched.
 
+**Preference learning (`memory: string[]` in PersistedState):** after every reflection submit and coach exchange, `learnQuietly()` in store.tsx fires `prompts.learn(memory, source, material)` in the background (no busy flag, failures silent by design; it is the one deliberately invisible engine action). The engine rewrites the full list (max 12 one-sentence items) and it is appended to `buildContext()`, so every feature personalizes over time. Shown and editable in Settings ("What the engine has learned", per-item Forget + Forget everything). Stored in the `kv` table / localStorage like other singletons. The stub branch keys off the phrase "Maintain their private preference list"; keep that phrase out of every other prompt (buildContext deliberately uses different wording).
+
+**Loading old data:** `withDefaults()` in backend.ts merges stored snapshots over the seed, with settings merged field-by-field, so adding a Settings field or top-level PersistedState key is backward-compatible. Keep it that way.
+
 ## Product rules (enforced, do not regress)
 
 - **Never an em dash** in UI copy or engine output (`clean()` post-processes; UI copy is hand-checked).
@@ -86,11 +94,12 @@ Data flow: module → `useApp()` action → optimistic state update → `backend
 - Colors only via CSS variables so both themes work; new UI must be checked in dark mode.
 - Every engine action has a busy label ("Sorting…", "Replanning…", "Recalculating…", "Thinking…", "Compiling…", "Tracing…", "Reviewing…", "Looking…", "Reading…") and is a no-op while busy.
 - The stub engine must keep the app fully usable with no key: any new AI feature needs a stub branch in `StubProvider` keyed off a distinctive prompt substring.
-- Default model for the Anthropic provider: `claude-opus-4-8` (user-editable in Settings).
+- Default models: `claude-opus-4-8` (Anthropic) and `gpt-5.1` (OpenAI), both user-editable in Settings.
+- All "today" dates are LOCAL calendar dates (`todayISO()` in time.ts, `localISO()` in db.ts). Never use `toISOString()` for a date: it is UTC and files evening activity under tomorrow for anyone west of Greenwich.
 
 ## Verification
 
-`scripts/verify.js` drives the app headlessly (needs `npm run dev` running, plus `npm i playwright-core` and a Chromium; set `CHROMIUM_PATH` if not at the default). It screenshots every module in both themes into `scripts/shots/` and asserts: task/habit toggles update the focus score, brain-dump capture classifies and clears, cascade regenerates, coach replies, reflection produces "Tonight's read", weekly rebuilds, vault filters live and surfaces connections, patterns regenerate, strategist refreshes both cards, settings and data persist across reload, no em dashes rendered, no empty modules. Keep it green.
+`scripts/verify.js` drives the app headlessly (needs `npm run dev` running, plus `npm i playwright-core` and a Chromium; set `CHROMIUM_PATH` if not at the default). It screenshots every module in both themes into `scripts/shots/` and asserts: task/habit toggles update the focus score, brain-dump capture classifies and clears, cascade regenerates, coach replies, reflection produces "Tonight's read", weekly rebuilds, vault filters live and surfaces connections, patterns regenerate, strategist refreshes both cards, settings and data persist across reload, the OpenAI engine option is offered, learned preferences accumulate from usage, no em dashes rendered, no empty modules. Keep it green.
 
 ## Sensible next steps (from the design spec's open items)
 

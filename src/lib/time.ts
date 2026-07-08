@@ -47,6 +47,10 @@ export function relativeWhen(ts: number, now = Date.now()): string {
   return `${days}d ago`;
 }
 
+/** Local calendar date (yyyy-mm-dd). Never UTC: an evening reflection after
+ *  7 PM in the Americas must not land on tomorrow's date. */
 export function todayISO(d = new Date()): string {
-  return d.toISOString().slice(0, 10);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
 }

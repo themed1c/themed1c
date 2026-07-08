@@ -178,6 +178,17 @@ const ok = (name, pass, detail = '') => {
   });
   ok('settings tone persisted across reload', supportiveSelected !== 'missing', `border: ${supportiveSelected}`);
 
+  /* ---- engine options include OpenAI ---- */
+  const settingsText = await page.locator('main').innerText();
+  ok('openai engine option offered', /OpenAI API/.test(settingsText));
+
+  /* ---- learned preferences accumulated from chat + reflection ---- */
+  ok(
+    'engine learned preferences from usage',
+    /What the engine has learned/i.test(settingsText) && /Forget everything/.test(settingsText),
+    (settingsText.match(/has learned\n[\s\S]{0,110}/i) || [''])[0].replace(/\n/g, ' | ').slice(0, 140),
+  );
+
   /* ---- persistence of dump across reload ---- */
   await nav('Brain Dump');
   const dumpAfterReload = await page.locator('main').innerText();

@@ -113,7 +113,7 @@ export interface MorningAction {
 }
 
 export type CoachTone = 'direct' | 'supportive' | 'analytical';
-export type ProviderKind = 'stub' | 'anthropic';
+export type ProviderKind = 'stub' | 'anthropic' | 'openai';
 
 export interface Settings {
   dark: boolean;
@@ -122,6 +122,8 @@ export interface Settings {
   provider: ProviderKind;
   apiKey: string;
   model: string;
+  openaiApiKey: string;
+  openaiModel: string;
 }
 
 /** Everything the app persists, as one object. The Electron backend maps
@@ -142,6 +144,9 @@ export interface PersistedState {
   reflections: Reflection[];
   morning: MorningAction[];
   eveningText: string;
+  /** Durable preferences the engine learns quietly from reflections and coach
+   *  chats, newest understanding as one flat list. Fed into every prompt. */
+  memory: string[];
   settings: Settings;
 }
 

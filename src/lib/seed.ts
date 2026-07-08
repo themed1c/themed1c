@@ -1,5 +1,6 @@
 import type { PersistedState } from './types';
 import { uid } from './clean';
+import { todayISO } from './time';
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.now();
@@ -70,10 +71,11 @@ export function seedState(): PersistedState {
       { id: uid(), time: '8:30 PM', label: 'Studio: Night Drive bridge', tag: 'Music' },
     ],
     habits: [
+      // "done" habits carry today's date so the new-day reset works from day one.
       { id: uid(), name: 'Gym: push / pull / legs', streak: 9, done: false, lastDone: null },
-      { id: uid(), name: '30 min instrument practice', streak: 4, done: true, lastDone: null },
+      { id: uid(), name: '30 min instrument practice', streak: 4, done: true, lastDone: todayISO() },
       { id: uid(), name: 'Read 20 pages', streak: 2, done: false, lastDone: null },
-      { id: uid(), name: 'Phone out of reach during study', streak: 6, done: true, lastDone: null },
+      { id: uid(), name: 'Phone out of reach during study', streak: 6, done: true, lastDone: todayISO() },
     ],
     projects: [
       {
@@ -157,6 +159,7 @@ export function seedState(): PersistedState {
       { action: 'Automate the $200 transfer: 10 minutes, then never again', why: 'It’s been on the list 9 days. Recurring guilt costs more attention than the task.' },
     ],
     eveningText: 'Run the debrief tonight: it reads today’s tasks, habits, and reflection, then reshapes tomorrow.',
+    memory: [],
     settings: {
       dark: false,
       coachTone: 'direct',
@@ -164,6 +167,8 @@ export function seedState(): PersistedState {
       provider: 'stub',
       apiKey: '',
       model: 'claude-opus-4-8',
+      openaiApiKey: '',
+      openaiModel: 'gpt-5.1',
     },
   };
 }

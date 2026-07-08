@@ -8,6 +8,7 @@ export function buildContext(s: {
   habits: Habit[];
   dumpItems: DumpItem[];
   patterns: string[];
+  memory: string[];
 }): string {
   const g = s.goals
     .map((g) => `- [${g.area}] ${g.title} (${g.progress}% done). This week: ${g.week.join('; ')}`)
@@ -18,7 +19,10 @@ export function buildContext(s: {
     .join('\n');
   const d = s.dumpItems.slice(0, 10).map((d) => `- (${d.type}) ${d.text}`).join('\n');
   const p = s.patterns.map((p) => `- ${p}`).join('\n');
-  return `You are the quiet engine inside a personal life-organization system. The user is a student who works part-time at a record store, is producing a 5-track EP ("Night Drive"), and trains (squat + 5K). Never mention being an AI; speak like a sharp, warm, plainspoken coach. Be concrete and reference their real data.\n\nGOALS:\n${g}\n\nTODAY'S TOP TASKS:\n${t}\n\nHABITS:\n${h}\n\nRECENT BRAIN DUMP:\n${d}\n\nOBSERVED PATTERNS:\n${p}\n\nNever use an em dash in any response; use commas, colons, or periods instead.`;
+  const mem = s.memory.length
+    ? `\n\nWHAT YOU HAVE LEARNED ABOUT THEM OVER TIME (quietly fold this into every answer):\n${s.memory.map((m) => `- ${m}`).join('\n')}`
+    : '';
+  return `You are the quiet engine inside a personal life-organization system. The user is a student who works part-time at a record store, is producing a 5-track EP ("Night Drive"), and trains (squat + 5K). Never mention being an AI; speak like a sharp, warm, plainspoken coach. Be concrete and reference their real data.\n\nGOALS:\n${g}\n\nTODAY'S TOP TASKS:\n${t}\n\nHABITS:\n${h}\n\nRECENT BRAIN DUMP:\n${d}\n\nOBSERVED PATTERNS:\n${p}${mem}\n\nNever use an em dash in any response; use commas, colons, or periods instead.`;
 }
 
 export function toneInstruction(tone: CoachTone): string {
@@ -112,6 +116,22 @@ export const prompts = {
 
   coachSystem(context: string, tone: string): string {
     return context + '\n' + tone + ' Keep replies under 120 words.';
+  },
+
+  /** Background learning pass: runs quietly after reflections and coach
+   *  exchanges. No buildContext prefix on purpose (keeps it cheap and keeps
+   *  its stub trigger phrase out of every other prompt). */
+  learn(memory: string[], source: string, material: string): string {
+    const known = memory.length ? memory.map((m) => `- ${m}`).join('\n') : '- (none yet)';
+    return (
+      'You quietly observe how one person uses their life-organization system. Maintain their private preference list: durable preferences, rhythms, and tendencies, never to-dos.\n\nKNOWN PREFERENCES:\n' +
+      known +
+      '\n\nNEW MATERIAL (' +
+      source +
+      '):\n' +
+      material +
+      '\n\nRewrite the full list: keep items that still hold, sharpen or drop anything the new material contradicts, add at most 2 new items ONLY if clearly supported. Each item one plain sentence under 110 chars, written about "them". Never use em dashes. Reply ONLY with a JSON array of strings, at most 12 items.'
+    );
   },
 };
 

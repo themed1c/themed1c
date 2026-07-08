@@ -14,6 +14,7 @@ const caption: CSSProperties = {
 const PROVIDERS: { key: ProviderKind; name: string; sub: string }[] = [
   { key: 'stub', name: 'Built-in (offline)', sub: 'Canned coaching, no key needed.' },
   { key: 'anthropic', name: 'Anthropic API', sub: 'Live engine, needs an API key.' },
+  { key: 'openai', name: 'OpenAI API', sub: 'Live engine from ChatGPT’s maker, needs an API key.' },
 ];
 
 const TONES: { key: CoachTone; label: string }[] = [
@@ -35,7 +36,7 @@ export default function Settings() {
         {/* -------- Engine -------- */}
         <Card>
           <CardLabel style={{ marginBottom: 14 }}>Engine</CardLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             {PROVIDERS.map((p) => {
               const sel = s.provider === p.key;
               return (
@@ -96,6 +97,109 @@ export default function Settings() {
               </div>
             </div>
           )}
+
+          {s.provider === 'openai' && (
+            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <CardLabel size={10} style={{ marginBottom: 7 }}>
+                  API key
+                </CardLabel>
+                <input
+                  className="field"
+                  type="password"
+                  value={s.openaiApiKey}
+                  placeholder="sk-…"
+                  onChange={(e) => app.updateSettings({ openaiApiKey: e.target.value })}
+                  onBlur={(e) => app.updateSettings({ openaiApiKey: e.target.value })}
+                  style={{ width: '100%' }}
+                />
+                <div style={caption}>
+                  A developer key from platform.openai.com. Stored locally, only ever sent to the
+                  API host. Note: a ChatGPT Plus login does not work here; it has to be an API key.
+                </div>
+              </div>
+              <div>
+                <CardLabel size={10} style={{ marginBottom: 7 }}>
+                  Model
+                </CardLabel>
+                <input
+                  className="field"
+                  type="text"
+                  value={s.openaiModel}
+                  placeholder="gpt-5.1"
+                  onChange={(e) => app.updateSettings({ openaiModel: e.target.value })}
+                  onBlur={(e) => app.updateSettings({ openaiModel: e.target.value })}
+                  style={{ width: '100%' }}
+                />
+                <div style={caption}>The model name sent with every request.</div>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* -------- Learned preferences -------- */}
+        <Card>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 14,
+            }}
+          >
+            <CardLabel>What the engine has learned</CardLabel>
+            {app.memory.length > 0 && (
+              <button
+                className="ghost-btn"
+                onClick={app.clearMemory}
+                style={{ fontSize: 12, padding: '5px 12px', borderRadius: 7, cursor: 'pointer' }}
+              >
+                Forget everything
+              </button>
+            )}
+          </div>
+          {app.memory.length === 0 ? (
+            <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.6 }}>
+              Nothing yet. It picks things up quietly from your reflections and coach
+              conversations, then uses them to sharpen every plan, review, and reply.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {app.memory.map((m, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    fontSize: 13.5,
+                    lineHeight: 1.55,
+                    color: 'var(--text2)',
+                  }}
+                >
+                  <span style={{ flex: 1 }}>{m}</span>
+                  <button
+                    className="ghost-btn"
+                    onClick={() => app.forgetMemory(i)}
+                    title="Forget this"
+                    style={{
+                      fontSize: 11,
+                      padding: '2px 9px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    Forget
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={caption}>
+            Learned over time, kept on this machine, and folded into everything the engine writes
+            for you. Forget anything that stops being true.
+          </div>
         </Card>
 
         {/* -------- Coach tone -------- */}

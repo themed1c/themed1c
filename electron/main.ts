@@ -5,6 +5,7 @@ import { openDatabase, type DBHandle } from './db';
 let db: DBHandle;
 
 interface AIPayload {
+  provider?: 'anthropic' | 'openai';
   system: string;
   messages: { role: 'user' | 'assistant'; content: string }[];
   apiKey: string;
@@ -14,6 +15,10 @@ interface AIPayload {
 /** The API key stays in the main process request; the renderer never talks to
  *  the network directly. */
 async function aiComplete(payload: AIPayload): Promise<string> {
+  return payload.provider === 'openai' ? openaiComplete(payload) : anthropicComplete(payload);
+}
+
+async function anthropicComplete(payload: AIPayload): Promise<string> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -38,6 +43,30 @@ async function aiComplete(payload: AIPayload): Promise<string> {
     .filter((b) => b.type === 'text')
     .map((b) => b.text ?? '')
     .join('');
+  if (!text) throw new Error('empty response');
+  return text;
+}
+
+async function openaiComplete(payload: AIPayload): Promise<string> {
+  const messages = [
+    ...(payload.system ? [{ role: 'system' as const, content: payload.system }] : []),
+    ...payload.messages,
+  ];
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${payload.apiKey}`,
+    },
+    body: JSON.stringify({ model: payload.model, messages }),
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string | null; refusal?: string | null } }[];
+  };
+  const msg = data.choices?.[0]?.message;
+  if (msg?.refusal) throw new Error('request declined');
+  const text = (msg?.content ?? '').trim();
   if (!text) throw new Error('empty response');
   return text;
 }

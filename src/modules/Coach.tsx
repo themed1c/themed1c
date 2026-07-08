@@ -105,7 +105,7 @@ export default function Coach() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') submit();
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) submit();
           }}
         />
         <AccentButton

@@ -6,7 +6,7 @@ import type {
 import { clean, parseJSON, uid } from './clean';
 import { createBackend } from './backend';
 import { seedState } from './seed';
-import { AnthropicProvider, StubProvider } from './ai/provider';
+import { AnthropicProvider, OpenAIProvider, StubProvider } from './ai/provider';
 import { buildContext, prompts, scheduleSummary, toneInstruction } from './ai/prompts';
 import { applyTheme } from './theme';
 import { monthDay, todayISO } from './time';
@@ -39,6 +39,9 @@ export interface AppContextValue extends PersistedState {
   toggleHabit(id: string): void;
   updateGoalItem(goalId: string, level: CascadeLevel, index: number, text: string): void;
   updateSettings(patch: Partial<Settings>): void;
+  /** Drop one learned preference (Settings) or wipe the whole list. */
+  forgetMemory(index: number): void;
+  clearMemory(): void;
 
   /** AI actions resolve true on success, false after a failure toast. */
   captureDump(text: string): Promise<boolean>;
@@ -131,6 +134,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (s.provider === 'anthropic' && s.apiKey) {
       return new AnthropicProvider(backend, () => dataRef.current.settings);
     }
+    if (s.provider === 'openai' && s.openaiApiKey) {
+      return new OpenAIProvider(backend, () => dataRef.current.settings);
+    }
     return stub;
   }, []);
 
@@ -156,6 +162,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
   const busyRef = useRef(busy);
   busyRef.current = busy;
+
+  /** Quiet preference learning: fire-and-forget after reflections and coach
+   *  exchanges. Invisible by design: no busy state, failures never toast. */
+  const learnRef = useRef(false);
+  const learnQuietly = useCallback(
+    (source: string, material: string) => {
+      const text = material.trim();
+      if (!text || learnRef.current) return;
+      learnRef.current = true;
+      void (async () => {
+        try {
+          const out = await provider().complete(prompts.learn(dataRef.current.memory, source, text));
+          const parsed = clean(parseJSON<unknown[]>(out))
+            .filter((x): x is string => typeof x === 'string' && !!x.trim())
+            .map((x) => x.trim().slice(0, 140))
+            .slice(0, 12);
+          if (parsed.length) update({ memory: parsed });
+        } catch {
+          /* learning is best-effort; the primary action already succeeded */
+        } finally {
+          learnRef.current = false;
+        }
+      })();
+    },
+    [provider, update],
+  );
+
+  const forgetMemory = useCallback(
+    (index: number) => {
+      update({ memory: dataRef.current.memory.filter((_, i) => i !== index) });
+    },
+    [update],
+  );
+
+  const clearMemory = useCallback(() => update({ memory: [] }), [update]);
 
   /* ---------- instant actions ---------- */
   const toggleTheme = useCallback(() => {
@@ -326,8 +367,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           createdAt: Date.now(),
         };
         update({ reflections, vault: [journal, ...d.vault] });
+        learnQuietly('tonight’s reflection', answers.filter(Boolean).join('\n'));
       }),
-    [aiAction, provider, context, tone, update],
+    [aiAction, provider, context, tone, update, learnQuietly],
   );
 
   const genWeekly = useCallback(
@@ -386,9 +428,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }),
         );
         update({ chat: [...dataRef.current.chat, { role: 'assistant', content: reply }] });
+        learnQuietly('a coach conversation', `Them: ${trimmed}\nCoach: ${reply}`);
       });
     },
-    [aiAction, provider, context, tone, update],
+    [aiAction, provider, context, tone, update, learnQuietly],
   );
 
   /* ---------- derived ---------- */
@@ -412,6 +455,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleHabit,
     updateGoalItem,
     updateSettings,
+    forgetMemory,
+    clearMemory,
     captureDump,
     replanTop,
     regenCascade,

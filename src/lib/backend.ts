@@ -2,6 +2,8 @@ import type { ChatTurn, PersistedState } from './types';
 import { seedState } from './seed';
 
 export interface AICompletePayload {
+  /** Which API vendor to call; the key/model pair matches the vendor. */
+  provider: 'anthropic' | 'openai';
   system: string;
   messages: ChatTurn[];
   apiKey: string;
@@ -15,7 +17,7 @@ export interface Backend {
   kind: 'electron' | 'browser';
   load(): Promise<PersistedState>;
   save(patch: Partial<PersistedState>): Promise<void>;
-  /** Calls the Anthropic Messages API with the key from settings. */
+  /** Calls the configured completions API with the key from settings. */
   aiComplete(payload: AICompletePayload): Promise<string>;
 }
 
@@ -31,6 +33,18 @@ declare global {
   }
 }
 
+/** Fill anything a stored (possibly older) snapshot is missing from the seed.
+ *  Settings merge field-by-field so new options get their defaults instead of
+ *  coming back undefined for existing data. */
+function withDefaults(loaded: Partial<PersistedState>): PersistedState {
+  const seed = seedState();
+  return {
+    ...seed,
+    ...loaded,
+    settings: { ...seed.settings, ...(loaded.settings ?? {}) },
+  };
+}
+
 class ElectronBackend implements Backend {
   kind = 'electron' as const;
   private bridge: LifeOSBridge;
@@ -41,7 +55,7 @@ class ElectronBackend implements Backend {
 
   async load(): Promise<PersistedState> {
     const loaded = await this.bridge.load();
-    if (loaded) return { ...seedState(), ...loaded };
+    if (loaded) return withDefaults(loaded);
     const seed = seedState();
     await this.bridge.save(seed);
     return seed;
@@ -64,7 +78,7 @@ class BrowserBackend implements Backend {
   async load(): Promise<PersistedState> {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) return { ...seedState(), ...(JSON.parse(raw) as Partial<PersistedState>) };
+      if (raw) return withDefaults(JSON.parse(raw) as Partial<PersistedState>);
     } catch {
       /* corrupted or unavailable storage: fall through to seed */
     }
@@ -82,35 +96,63 @@ class BrowserBackend implements Backend {
     localStorage.setItem(LS_KEY, JSON.stringify({ ...current, ...patch }));
   }
 
-  async aiComplete(payload: AICompletePayload): Promise<string> {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': payload.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: payload.model,
-        max_tokens: 1024,
-        system: payload.system,
-        messages: payload.messages,
-      }),
-    });
-    if (!res.ok) throw new Error(`API error ${res.status}`);
-    const data = (await res.json()) as {
-      stop_reason?: string;
-      content?: { type: string; text?: string }[];
-    };
-    if (data.stop_reason === 'refusal') throw new Error('request declined');
-    const text = (data.content ?? [])
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text ?? '')
-      .join('');
-    if (!text) throw new Error('empty response');
-    return text;
+  aiComplete(payload: AICompletePayload): Promise<string> {
+    return payload.provider === 'openai' ? openaiComplete(payload) : anthropicComplete(payload);
   }
+}
+
+async function anthropicComplete(payload: AICompletePayload): Promise<string> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': payload.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: payload.model,
+      max_tokens: 1024,
+      system: payload.system,
+      messages: payload.messages,
+    }),
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const data = (await res.json()) as {
+    stop_reason?: string;
+    content?: { type: string; text?: string }[];
+  };
+  if (data.stop_reason === 'refusal') throw new Error('request declined');
+  const text = (data.content ?? [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text ?? '')
+    .join('');
+  if (!text) throw new Error('empty response');
+  return text;
+}
+
+async function openaiComplete(payload: AICompletePayload): Promise<string> {
+  const messages = [
+    ...(payload.system ? [{ role: 'system' as const, content: payload.system }] : []),
+    ...payload.messages,
+  ];
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${payload.apiKey}`,
+    },
+    body: JSON.stringify({ model: payload.model, messages }),
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string | null; refusal?: string | null } }[];
+  };
+  const msg = data.choices?.[0]?.message;
+  if (msg?.refusal) throw new Error('request declined');
+  const text = (msg?.content ?? '').trim();
+  if (!text) throw new Error('empty response');
+  return text;
 }
 
 export function createBackend(): Backend {

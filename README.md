@@ -19,11 +19,15 @@ That's it. The app opens on the Life Dashboard with sample data and works fully 
 
 ### Connecting the real engine (optional)
 
-1. Get an API key from [platform.claude.com](https://platform.claude.com) (Anthropic).
+1. Get an API key from [platform.claude.com](https://platform.claude.com) (Anthropic) or [platform.openai.com](https://platform.openai.com) (OpenAI, ChatGPT's maker). Note: these are developer API keys; a ChatGPT Plus or Claude subscription login cannot be used here.
 2. In the app, open **Settings** (bottom of the sidebar).
-3. Under **Engine**, choose **Anthropic API** and paste your key.
+3. Under **Engine**, choose **Anthropic API** or **OpenAI API** and paste your key.
 
-The key is stored in the local database on your machine and is only ever sent to `api.anthropic.com`. The default model is `claude-opus-4-8`; you can change it in the same screen.
+The key is stored in the local database on your machine and is only ever sent to the matching API host (`api.anthropic.com` or `api.openai.com`). Default models are `claude-opus-4-8` and `gpt-5.1`; both are editable in the same screen.
+
+### It learns your preferences over time
+
+After every reflection and coach conversation, the engine quietly updates a short list of durable preferences it has learned about you (your best working hours, what late nights cost you, and so on), and folds that list into every plan, review, and reply it writes. The list lives in **Settings → What the engine has learned**, stays on your machine, and any item can be forgotten with one click. It works with the offline engine too, just more simply.
 
 ## Where your data lives
 
@@ -49,7 +53,7 @@ Back that file up and you've backed up your life system.
 | **Reflection** | Five honest questions each evening; the engine reads them back to you |
 | **Weekly Review** | Wins, failures, habits, time, progress, and recommended changes |
 | **Patterns** | Behavioral patterns you haven't noticed, drawn from your own data |
-| **Settings** | Engine provider and key, coach tone, top-task count, theme |
+| **Settings** | Engine provider and key, learned preferences, coach tone, top-task count, theme |
 
 ## Development
 
@@ -75,7 +79,7 @@ src/
     types.ts        all data shapes
     store.tsx       app state + every action (data + AI), one React context
     backend.ts      storage/network boundary: Electron IPC or browser fallback
-    ai/provider.ts  AIProvider interface: StubProvider (offline) + AnthropicProvider
+    ai/provider.ts  AIProvider interface: StubProvider (offline), AnthropicProvider, OpenAIProvider
     ai/prompts.ts   buildContext() + the exact prompt contracts from the design
     scores.ts       area-score model + focus score
   components/ui.tsx shared primitives (Card, Track, Chip, …)

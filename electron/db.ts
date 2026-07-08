@@ -8,6 +8,21 @@ import fs from 'node:fs';
 
 type Row = Record<string, unknown>;
 
+/** Local calendar date (yyyy-mm-dd), matching the renderer's todayISO. UTC
+ *  would file evening activity under tomorrow for anyone west of Greenwich. */
+function localISO(d = new Date()): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function mondayISO(): string {
+  const d = new Date();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return localISO(monday);
+}
+
 export interface DBHandle {
   load(): Row | null;
   save(patch: Row): void;
@@ -166,17 +181,15 @@ export function openDatabase(userDataDir: string): DBHandle {
       })),
       morning: getKV('morning') ?? [],
       eveningText: getKV('eveningText') ?? '',
+      memory: getKV('memory') ?? [],
       settings: getKV('settings') ?? {},
     };
   }
 
   function currentWeekly(): unknown {
-    const d = new Date();
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
     const row = db
       .prepare('SELECT sections_json FROM weekly_reviews WHERE week_start = ?')
-      .get(monday.toISOString().slice(0, 10)) as { sections_json: string } | undefined;
+      .get(mondayISO()) as { sections_json: string } | undefined;
     return row ? JSON.parse(row.sections_json) : undefined;
   }
 
@@ -229,7 +242,7 @@ export function openDatabase(userDataDir: string): DBHandle {
           habits.map((h, i) => [h.id, h.name, h.streak, h.done ? 1 : 0, h.lastDone ?? null, i]),
         );
         // Activity history for future scoring models.
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localISO();
         const log = db.prepare(
           'INSERT INTO habit_logs (habit_id, date, done) VALUES (?, ?, ?) ON CONFLICT(habit_id, date) DO UPDATE SET done = excluded.done',
         );
@@ -280,12 +293,9 @@ export function openDatabase(userDataDir: string): DBHandle {
       }
       if (patch.weekly) {
         setKV('weekly', patch.weekly);
-        const d = new Date();
-        const monday = new Date(d);
-        monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
         db.prepare(
           'INSERT INTO weekly_reviews (week_start, sections_json) VALUES (?, ?) ON CONFLICT(week_start) DO UPDATE SET sections_json = excluded.sections_json',
-        ).run(monday.toISOString().slice(0, 10), JSON.stringify(patch.weekly));
+        ).run(mondayISO(), JSON.stringify(patch.weekly));
       }
       if (patch.reflections) {
         const stmt = db.prepare(
@@ -297,6 +307,7 @@ export function openDatabase(userDataDir: string): DBHandle {
       }
       if (patch.morning) setKV('morning', patch.morning);
       if (patch.eveningText !== undefined) setKV('eveningText', patch.eveningText);
+      if (patch.memory) setKV('memory', patch.memory);
       if (patch.settings) setKV('settings', patch.settings);
       setKV('initialized', true);
       db.exec('COMMIT');

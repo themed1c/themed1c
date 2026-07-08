@@ -1,6 +1,29 @@
 import type { AIProvider, CompletionRequest, ChatTurn, DumpType, Settings } from '../types';
 import type { Backend } from '../backend';
 
+function toPayload(request: CompletionRequest): { system: string; messages: ChatTurn[] } {
+  return typeof request === 'string'
+    ? { system: '', messages: [{ role: 'user' as const, content: request }] }
+    : { system: request.system, messages: request.messages };
+}
+
+/** The Anthropic Messages API requires the history to start with a user turn
+ *  and alternate roles: drop the seeded assistant greeting and merge any
+ *  consecutive same-role turns (a failed send can leave two user turns). */
+function normalizeForAnthropic(messages: ChatTurn[]): ChatTurn[] {
+  const out: ChatTurn[] = [];
+  for (const m of messages) {
+    if (!out.length && m.role === 'assistant') continue;
+    const prev = out[out.length - 1];
+    if (prev && prev.role === m.role) {
+      out[out.length - 1] = { ...prev, content: prev.content + '\n\n' + m.content };
+    } else {
+      out.push(m);
+    }
+  }
+  return out;
+}
+
 /** Calls the Anthropic Messages API through the backend (main process in
  *  Electron, direct fetch in the browser). */
 export class AnthropicProvider implements AIProvider {
@@ -12,14 +35,34 @@ export class AnthropicProvider implements AIProvider {
   async complete(request: CompletionRequest): Promise<string> {
     const settings = this.getSettings();
     if (!settings.apiKey) throw new Error('missing API key');
-    const payload =
-      typeof request === 'string'
-        ? { system: '', messages: [{ role: 'user' as const, content: request }] }
-        : { system: request.system, messages: request.messages };
+    const payload = toPayload(request);
     return this.backend.aiComplete({
-      ...payload,
+      provider: 'anthropic',
+      system: payload.system,
+      messages: normalizeForAnthropic(payload.messages),
       apiKey: settings.apiKey,
       model: settings.model || 'claude-opus-4-8',
+    });
+  }
+}
+
+/** Calls the OpenAI Chat Completions API through the backend, same shape as
+ *  the Anthropic path; lets the engine run on a ChatGPT-maker (OpenAI) key. */
+export class OpenAIProvider implements AIProvider {
+  constructor(
+    private backend: Backend,
+    private getSettings: () => Settings,
+  ) {}
+
+  async complete(request: CompletionRequest): Promise<string> {
+    const settings = this.getSettings();
+    if (!settings.openaiApiKey) throw new Error('missing API key');
+    const payload = toPayload(request);
+    return this.backend.aiComplete({
+      provider: 'openai',
+      ...payload,
+      apiKey: settings.openaiApiKey,
+      model: settings.openaiModel || 'gpt-5.1',
     });
   }
 }
@@ -33,6 +76,7 @@ export class StubProvider implements AIProvider {
     if (typeof request !== 'string') return coachReply(request.messages);
 
     const p = request;
+    if (p.includes('Maintain their private preference list')) return learnedPrefs(p);
     if (p.includes('Split this brain dump')) return classifyDump(p);
     if (p.includes('highest-impact tasks for today')) return REPLAN_JSON;
     if (p.includes('Rebuild the roadmap for the goal')) return cascadeFor(p);
@@ -48,6 +92,32 @@ export class StubProvider implements AIProvider {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/* ---------- preference learning: keep what's known, add what the material
+ * clearly supports. Offline stand-in for the real learn prompt. ---------- */
+
+function learnedPrefs(prompt: string): string {
+  const existing: string[] = [];
+  const m = prompt.match(/KNOWN PREFERENCES:\n([\s\S]*?)\n\nNEW MATERIAL/);
+  if (m) {
+    for (const line of m[1].split('\n')) {
+      const t = line.replace(/^-\s*/, '').trim();
+      if (t && t !== '(none yet)') existing.push(t);
+    }
+  }
+  const material = prompt.slice(prompt.indexOf('NEW MATERIAL'));
+  const has = (s: string) => existing.some((e) => e.toLowerCase().includes(s));
+  const additions: string[] = [];
+  if (/\b(morning|before 11|early)\b/i.test(material) && !has('morning'))
+    additions.push('Does their best focused work in the morning; protect the first 90 minutes.');
+  if (/\b(late|past 1|midnight|sleep)\b/i.test(material) && !has('late'))
+    additions.push('Late nights cost the next morning; an earlier stop beats a longer push.');
+  if (/\b(gym|run|train|workout)\b/i.test(material) && !has('training'))
+    additions.push('Training days lift mood and focus; the workout slot is worth guarding.');
+  if (!existing.length && !additions.length)
+    additions.push('Responds better to one clear next step than a long list.');
+  return JSON.stringify([...existing, ...additions].slice(0, 12));
 }
 
 /* ---------- brain dump: local heuristic classification ---------- */
