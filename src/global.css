@@ -1,0 +1,290 @@
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 200 700;
+  font-display: swap;
+  src: url('./assets/fonts/oswald-latin.woff2') format('woff2');
+}
+
+:root {
+  --bg: #FDFCF9;
+  --card: #FFFFFF;
+  --raised: #F8F6EF;
+  --line: #F1EFE7;
+  --border: #E9E6DB;
+  --chip: #DBD6C6;
+  --box: #C9C3B0;
+  --accent-border: #E9D9B4;
+  --track: #F0EEE4;
+  --faint: #A39A87;
+  --muted: #7E7663;
+  --text2: #4C463A;
+  --text: #26221A;
+  --accent: #B07F2C;
+  --accent-hover: #C79A4D;
+  --on-accent: #FFFDF6;
+  --hover-tint: rgba(176, 127, 44, 0.06);
+  --active-tint: rgba(176, 127, 44, 0.09);
+  --bubble-tint: rgba(176, 127, 44, 0.09);
+  --bar2: #B5A87F;
+  --dot-idle: #D9D3C1;
+  --good: #6E7F3F;
+  --bad: #B0563F;
+  --mid: #8A7A5A;
+  --tag-project: #A5691F;
+  --tag-deadline: #B05E33;
+  --tag-idea: #A5852B;
+  --tag-decision: #8A66A8;
+  --tag-note: #82755C;
+  --err-bg: #FAEFE4;
+  --err-border: #D9A98C;
+  --err-text: #A0522E;
+  --trend-up: #4FA372;
+  --trend-down: #D9705F;
+}
+
+:root.dark {
+  --bg: #2B2B2F;
+  --card: #35353B;
+  --raised: #3F3F46;
+  --line: #3C3C43;
+  --border: #4A4A52;
+  --chip: #585862;
+  --box: #686873;
+  --accent-border: #766340;
+  --track: #44444D;
+  --faint: #98989F;
+  --muted: #BCBCC3;
+  --text2: #E2E2E6;
+  --text: #F4F4F6;
+  --accent: #E0A458;
+  --accent-hover: #EDC088;
+  --on-accent: #1F1F22;
+  --hover-tint: rgba(224, 164, 88, 0.08);
+  --active-tint: rgba(224, 164, 88, 0.12);
+  --bubble-tint: rgba(224, 164, 88, 0.14);
+  --bar2: #9C9C8A;
+  --dot-idle: #5E5E69;
+  --good: #AEBB88;
+  --bad: #D18A7A;
+  --mid: #C2C2B4;
+  --tag-project: #D0955C;
+  --tag-deadline: #D8967A;
+  --tag-idea: #DCBE78;
+  --tag-decision: #C2A6D4;
+  --tag-note: #A8A89E;
+  --err-bg: #3A2A24;
+  --err-border: #7A5342;
+  --err-text: #E0AC98;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font-weight: 500;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+::placeholder {
+  color: var(--faint);
+}
+
+textarea,
+input,
+select {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.fade-up {
+  animation: fadeUp 0.3s ease;
+}
+
+.blink {
+  animation: blink 1.2s infinite;
+}
+
+/* Ghost button: bordered, quiet; hover gains accent border + full text color */
+.ghost-btn {
+  background: transparent;
+  border: 1px solid var(--chip);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+.ghost-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Accent button: filled; hover lightens */
+.accent-btn {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+.accent-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* Sidebar nav item */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--muted);
+}
+
+.nav-item:hover {
+  background: var(--hover-tint);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--active-tint);
+  color: var(--text);
+}
+
+/* Raised task row on the dashboard */
+.task-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: var(--raised);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 13px 16px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+.task-row:hover {
+  border-color: var(--chip);
+}
+
+/* Goal card selector hover */
+.goal-card:hover {
+  border-color: var(--box) !important;
+}
+
+/* Theme toggle pill */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--chip);
+  border-radius: 20px;
+  padding: 5px 11px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Plain checkbox-ish rows (habits) */
+.quiet-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: transparent;
+  border: none;
+  padding: 6px 2px;
+  cursor: pointer;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  width: 100%;
+}
+
+/* Inputs */
+.field {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 16px;
+  color: var(--text);
+  font-size: 14.5px;
+  outline: none;
+}

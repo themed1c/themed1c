@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#FDFCF9; --card:#FFFFFF; --raised:#F8F6EF; --line:#F1EFE7; --border:#E9E6DB; --chip:#DBD6C6; --box:#C9C3B0; --accent-border:#E9D9B4; --track:#F0EEE4; --faint:#A39A87; --muted:#7E7663; --text2:#4C463A; --text:#26221A; --accent:#B07F2C; --accent-hover:#C79A4D; --on-accent:#FFFDF6; --hover-tint:rgba(176,127,44,0.06); --active-tint:rgba(176,127,44,0.09); --bubble-tint:rgba(176,127,44,0.09); --bar2:#B5A87F; --dot-idle:#D9D3C1; --good:#6E7F3F; --bad:#B0563F; --mid:#8A7A5A; --tag-project:#A5691F; --tag-deadline:#B05E33; --tag-idea:#A5852B; --tag-decision:#8A66A8; --tag-note:#82755C; --err-bg:#FAEFE4; --err-border:#D9A98C; --err-text:#A0522E; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif; font-weight:500; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility; }
+    button, input, textarea, select { font-weight:500; }
+    * { box-sizing:border-box; }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { color:var(--accent-hover); }
+    ::placeholder { color:var(--faint); }
+    textarea, input, select { font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif; }
+    ::-webkit-scrollbar { width:10px; height:10px; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:5px; border:2px solid var(--bg); }
+    ::-webkit-scrollbar-track { background:transparent; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+  </style>
+</helmet>
+
+<div style="display:flex; height:100vh; background:var(--bg); overflow:hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <nav style="width:228px; flex-shrink:0; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:20px 12px; gap:18px; overflow-y:auto;">
+    <div style="padding:4px 12px 6px;">
+      <div style="font-size:15px; font-weight:600; letter-spacing:0.01em;">Life Organization</div>
+      <div style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:10px; color:var(--faint); margin-top:3px; letter-spacing:0.08em;">{{ dateShort }}</div>
+      <button onClick="{{ toggleTheme }}" style="margin-top:12px; display:flex; align-items:center; gap:8px; background:transparent; border:1px solid var(--chip); border-radius:20px; padding:5px 11px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif; font-size:11.5px; color:var(--muted);" style-hover="color:var(--text); border-color:var(--accent);">
+        <span style="width:24px; height:13px; border-radius:7px; background:{{ swBg }}; position:relative; display:inline-block; flex-shrink:0;">
+          <span style="position:absolute; top:2px; left:{{ swLeft }}; width:9px; height:9px; border-radius:50%; background:var(--card); transition:left 0.15s ease;"></span>
+        </span>
+        {{ themeLabel }}
+      </button>
+    </div>
+    <sc-for list="{{ nav }}" as="grp" hint-placeholder-count="4">
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--faint); padding:4px 12px 6px;">{{ grp.label }}</div>
+        <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="3">
+          <button onClick="{{ it.go }}" style="display:flex; align-items:center; gap:9px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer; text-align:left; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:13.5px; font-weight:500; background:{{ it.bg }}; color:{{ it.color }};" style-hover="background:var(--hover-tint); color:var(--text);">
+            <span style="width:5px; height:5px; border-radius:50%; flex-shrink:0; background:{{ it.dot }};"></span>
+            {{ it.label }}
+          </button>
+        </sc-for>
+      </div>
+    </sc-for>
+  </nav>
+
+  <!-- ============ MAIN ============ -->
+  <main style="flex:1; overflow-y:auto; padding:36px 44px 80px;">
+  <div style="max-width:1060px; margin:0 auto;">
+
+  <!-- ==================== TODAY / COMMAND CENTER ==================== -->
+  <sc-if value="{{ mDashboard }}" hint-placeholder-val="{{ true }}">
+    <section data-screen-label="Life Dashboard" style="animation:fadeUp 0.3s ease;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:26px;">
+        <div>
+          <h1 style="margin:0; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">{{ greeting }}</h1>
+          <div style="color:var(--muted); font-size:14px; margin-top:5px;">{{ dateLong }}</div>
+        </div>
+        <div style="display:flex; gap:28px; text-align:right;">
+          <div>
+            <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint);">Focus score</div>
+            <div style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:26px; color:var(--accent); margin-top:2px;">{{ focusScore }}</div>
+          </div>
+          <div>
+            <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint);">Habits</div>
+            <div style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:26px; color:var(--text); margin-top:2px;">{{ habitsDone }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:16px;">
+        <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:18px;">Life areas, last 30 days</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px 28px;">
+          <sc-for list="{{ areas }}" as="a" hint-placeholder-count="10">
+            <div style="display:flex; flex-direction:column; gap:6px; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px;">
+                <span style="font-size:13px; font-weight:600; color:var(--text);">{{ a.name }}</span>
+                <span style="display:flex; align-items:baseline; gap:6px; flex-shrink:0;">
+                  <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:13px; color:var(--text2);">{{ a.score }}</span>
+                  <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:10.5px; color:{{ a.trendColor }};">{{ a.trend }}</span>
+                </span>
+              </div>
+              <div style="height:10px; background:var(--track); border-radius:5px; overflow:hidden;">
+                <div style="height:100%; width:{{ a.pct }}; background:{{ a.barBg }}; border-radius:5px;"></div>
+              </div>
+              <div style="font-size:11.5px; color:var(--faint); line-height:1.45; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ a.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1.7fr 1fr; gap:16px; align-items:start;">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted);">{{ topCount }} things that matter today</div>
+              <button onClick="{{ replanTop }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:12px; padding:5px 12px; border-radius:7px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ replanLabel }}</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <sc-for list="{{ top3 }}" as="t" hint-placeholder-count="3">
+                <button onClick="{{ t.toggle }}" style="display:flex; gap:14px; align-items:center; background:var(--raised); border:1px solid transparent; border-radius:9px; padding:13px 16px; cursor:pointer; text-align:left; width:100%; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="border-color:var(--chip);">
+                  <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:13px; color:var(--accent); width:16px;">{{ t.n }}</span>
+                  <span style="flex:1; font-size:14.5px; color:{{ t.color }}; text-decoration:{{ t.deco }};">{{ t.text }}</span>
+                  <span style="font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif; font-weight:500; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--faint); border:1px solid var(--border); padding:2px 8px; border-radius:20px;">{{ t.area }}</span>
+                  <span style="width:18px; height:18px; border-radius:5px; border:1.5px solid {{ t.boxBorder }}; background:{{ t.boxBg }}; display:flex; align-items:center; justify-content:center; color:var(--on-accent); font-size:12px; font-weight:600;">{{ t.check }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px;">
+            <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:14px;">Today's schedule</div>
+            <div style="display:flex; flex-direction:column;">
+              <sc-for list="{{ schedule }}" as="s" hint-placeholder-count="5">
+                <div style="display:flex; gap:16px; align-items:center; padding:10px 2px; border-bottom:1px solid var(--line);">
+                  <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:12px; color:var(--faint); width:66px;">{{ s.t }}</span>
+                  <span style="flex:1; font-size:14px; color:var(--text2);">{{ s.label }}</span>
+                  <span style="font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif; font-weight:500; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);">{{ s.tag }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px;">
+            <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:14px;">Progress toward goals</div>
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <sc-for list="{{ goalStrip }}" as="g" hint-placeholder-count="4">
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;">
+                    <span style="color:var(--text2);">{{ g.title }}</span>
+                    <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:12px; color:var(--muted);">{{ g.pct }}</span>
+                  </div>
+                  <div style="height:5px; background:var(--track); border-radius:3px; overflow:hidden;">
+                    <div style="height:100%; background:var(--accent); border-radius:3px; width:{{ g.pct }};"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px;">
+            <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Habits</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <sc-for list="{{ habits }}" as="h" hint-placeholder-count="4">
+                <button onClick="{{ h.toggle }}" style="display:flex; align-items:center; gap:11px; background:transparent; border:none; padding:6px 2px; cursor:pointer; text-align:left; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;">
+                  <span style="width:17px; height:17px; border-radius:5px; border:1.5px solid {{ h.boxBorder }}; background:{{ h.boxBg }}; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--on-accent); font-size:11px; font-weight:600;">{{ h.check }}</span>
+                  <span style="flex:1; font-size:13.5px; color:{{ h.color }};">{{ h.name }}</span>
+                  <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:11px; color:var(--faint);">{{ h.streak }}d</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px;">
+            <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Active projects</div>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <sc-for list="{{ projectStrip }}" as="p" hint-placeholder-count="4">
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
+                    <span style="color:var(--text2);">{{ p.name }}</span>
+                    <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:11px; color:var(--faint);">{{ p.stage }}</span>
+                  </div>
+                  <div style="height:4px; background:var(--track); border-radius:2px; overflow:hidden;">
+                    <div style="height:100%; background:var(--bar2); border-radius:2px; width:{{ p.pct }};"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== BRAIN DUMP ==================== -->
+  <sc-if value="{{ mDump }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Brain Dump" style="animation:fadeUp 0.3s ease;">
+      <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Brain Dump</h1>
+      <div style="color:var(--muted); font-size:14px; margin-bottom:24px;">Write anything. It sorts itself.</div>
+
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:8px;">
+        <textarea value="{{ dumpText }}" onChange="{{ onDumpText }}" placeholder="Ideas, worries, plans, things to remember, half-formed thoughts…" style="width:100%; min-height:150px; background:transparent; border:none; outline:none; resize:vertical; color:var(--text); font-size:15px; line-height:1.6; padding:16px;"></textarea>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 12px 10px;">
+          <span style="font-size:12.5px; color:var(--faint);">{{ dumpStatus }}</span>
+          <button onClick="{{ captureDump }}" style="background:var(--accent); color:var(--on-accent); border:none; border-radius:8px; padding:9px 20px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="background:var(--accent-hover);">{{ captureLabel }}</button>
+        </div>
+      </div>
+
+      <div style="margin:30px 0 12px; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted);">Recently captured</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <sc-for list="{{ dumpList }}" as="d" hint-placeholder-count="6">
+          <div style="display:flex; align-items:center; gap:14px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:12px 16px;">
+            <span style="font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif; font-weight:600; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:{{ d.tagColor }}; border:1px solid {{ d.tagBorder }}; padding:3px 9px; border-radius:20px; width:88px; text-align:center; flex-shrink:0;">{{ d.type }}</span>
+            <span style="flex:1; font-size:14px; color:var(--text2);">{{ d.text }}</span>
+            <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:11px; color:var(--faint); flex-shrink:0;">{{ d.when }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== GOAL CENTER ==================== -->
+  <sc-if value="{{ mGoals }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Goal Center" style="animation:fadeUp 0.3s ease;">
+      <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Goal Center</h1>
+      <div style="color:var(--muted); font-size:14px; margin-bottom:24px;">Every goal is a workspace. The roadmap rewrites itself as you make progress.</div>
+
+      <div style="display:grid; grid-template-columns:300px 1fr; gap:16px; align-items:start;">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <sc-for list="{{ goalCards }}" as="g" hint-placeholder-count="4">
+            <button onClick="{{ g.select }}" style="text-align:left; background:{{ g.bg }}; border:1px solid {{ g.border }}; border-radius:11px; padding:16px 18px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="border-color:var(--box);">
+              <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;">{{ g.area }}</div>
+              <div style="font-size:14.5px; font-weight:500; color:var(--text); line-height:1.4;">{{ g.title }}</div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                <div style="flex:1; height:4px; background:var(--track); border-radius:2px; overflow:hidden;">
+                  <div style="height:100%; background:var(--accent); width:{{ g.pct }};"></div>
+                </div>
+                <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:11px; color:var(--muted);">{{ g.pct }}</span>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:26px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+            <div>
+              <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted);">{{ selArea }}</div>
+              <div style="font-size:19px; font-weight:600; margin-top:4px;">{{ selTitle }}</div>
+            </div>
+            <button onClick="{{ regenCascade }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:12px; padding:6px 14px; border-radius:7px; cursor:pointer; flex-shrink:0; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ cascadeLabel }}</button>
+          </div>
+          <div style="display:flex; flex-direction:column;">
+            <sc-for list="{{ cascade }}" as="lvl" hint-placeholder-count="6">
+              <div style="display:flex; gap:18px;">
+                <div style="display:flex; flex-direction:column; align-items:center; width:12px; flex-shrink:0;">
+                  <span style="width:8px; height:8px; border-radius:50%; background:{{ lvl.dot }}; margin-top:6px;"></span>
+                  <span style="flex:1; width:1px; background:var(--border); display:{{ lvl.line }};"></span>
+                </div>
+                <div style="flex:1; padding-bottom:22px;">
+                  <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;">{{ lvl.label }}</div>
+                  <div style="display:flex; flex-direction:column; gap:5px;">
+                    <sc-for list="{{ lvl.items }}" as="li" hint-placeholder-count="2">
+                      <div style="font-size:14px; color:{{ lvl.color }}; line-height:1.5;">{{ li }}</div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== COACH ==================== -->
+  <sc-if value="{{ mCoach }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Coach" style="animation:fadeUp 0.3s ease; display:flex; flex-direction:column; height:calc(100vh - 130px);">
+      <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Coach</h1>
+      <div style="color:var(--muted); font-size:14px; margin-bottom:20px;">Knows everything you've written. Ask it anything.</div>
+
+      <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px; overflow-y:auto; display:flex; flex-direction:column; gap:14px;" ref="{{ chatRef }}">
+        <sc-for list="{{ chatMsgs }}" as="m" hint-placeholder-count="2">
+          <div style="align-self:{{ m.align }}; max-width:78%; background:{{ m.bg }}; border:1px solid {{ m.border }}; border-radius:12px; padding:12px 16px; font-size:14.5px; line-height:1.6; color:{{ m.color }}; white-space:pre-wrap;">{{ m.content }}</div>
+        </sc-for>
+        <sc-if value="{{ chatBusy }}" hint-placeholder-val="{{ false }}">
+          <div style="align-self:flex-start; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif; font-weight:500; font-size:12px; color:var(--faint); animation:blink 1.2s infinite;">thinking…</div>
+        </sc-if>
+      </div>
+
+      <div style="display:flex; gap:8px; margin:12px 0 10px; flex-wrap:wrap;">
+        <sc-for list="{{ chatChips }}" as="c" hint-placeholder-count="4">
+          <button onClick="{{ c.send }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:12.5px; padding:6px 13px; border-radius:20px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ c.text }}</button>
+        </sc-for>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <input value="{{ chatInput }}" onChange="{{ onChatInput }}" onKeyDown="{{ onChatKey }}" placeholder="Talk it through…" style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:13px 16px; color:var(--text); font-size:14.5px; outline:none;" />
+        <button onClick="{{ sendChat }}" style="background:var(--accent); color:var(--on-accent); border:none; border-radius:10px; padding:0 22px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="background:var(--accent-hover);">Send</button>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== PATTERNS ==================== -->
+  <sc-if value="{{ mPatterns }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Pattern Recognition" style="animation:fadeUp 0.3s ease;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+        <div>
+          <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Patterns</h1>
+          <div style="color:var(--muted); font-size:14px;">Things you do that you haven't noticed. Drawn from everything you've logged.</div>
+        </div>
+        <button onClick="{{ genPatterns }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:12px; padding:6px 14px; border-radius:7px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ patLabel }}</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ patternList }}" as="p" hint-placeholder-count="4">
+          <div style="display:flex; gap:18px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px 22px;">
+            <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:13px; color:var(--accent); flex-shrink:0;">{{ p.n }}</span>
+            <span style="font-size:15px; line-height:1.6; color:var(--text2);">{{ p.text }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== ROADMAPS ==================== -->
+  <sc-if value="{{ mRoadmaps }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Roadmaps" style="animation:fadeUp 0.3s ease;">
+      <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Roadmaps</h1>
+      <div style="color:var(--muted); font-size:14px; margin-bottom:24px;">Where every project stands, and what's in its way.</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <sc-for list="{{ projects }}" as="p" hint-placeholder-count="4">
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <div style="font-size:16px; font-weight:600;">{{ p.name }}</div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:12px; color:var(--muted);">{{ p.pct }}</span>
+                <span style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent-border); padding:3px 10px; border-radius:20px;">{{ p.stage }}</span>
+              </div>
+            </div>
+            <div style="display:flex; margin:20px 0 22px;">
+              <sc-for list="{{ p.map }}" as="m" hint-placeholder-count="5">
+                <div style="flex:1; display:flex; flex-direction:column; align-items:center; position:relative; min-width:0;">
+                  <sc-if value="{{ m.hasLine }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute; top:6px; right:50%; width:100%; height:2px; background:{{ m.lineColor }};"></span>
+                  </sc-if>
+                  <span style="width:10px; height:10px; border-radius:50%; background:{{ m.dotBg }}; border:2px solid {{ m.dotBorder }}; position:relative; z-index:1;"></span>
+                  <span style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-size:10.5px; font-weight:{{ m.labelWeight }}; color:{{ m.labelColor }}; margin-top:8px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%;">{{ m.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 18px;">
+              <sc-for list="{{ p.fields }}" as="f" hint-placeholder-count="6">
+                <div>
+                  <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:3px;">{{ f.k }}</div>
+                  <div style="font-size:13px; color:var(--text2); line-height:1.5;">{{ f.v }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== REFLECTION ==================== -->
+  <sc-if value="{{ mReflect }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Reflection" style="animation:fadeUp 0.3s ease; max-width:720px;">
+      <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Evening Reflection</h1>
+      <div style="color:var(--muted); font-size:14px; margin-bottom:24px;">Five minutes. Be honest.</div>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <sc-for list="{{ reflQs }}" as="q" hint-placeholder-count="5">
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:11px; padding:16px 18px;">
+            <div style="font-size:14px; font-weight:500; color:var(--text); margin-bottom:10px;">{{ q.q }}</div>
+            <textarea value="{{ q.val }}" onChange="{{ q.set }}" placeholder="…" style="width:100%; min-height:52px; background:transparent; border:none; outline:none; resize:vertical; color:var(--text2); font-size:14px; line-height:1.6;"></textarea>
+          </div>
+        </sc-for>
+      </div>
+      <button onClick="{{ submitRefl }}" style="margin-top:18px; background:var(--accent); color:var(--on-accent); border:none; border-radius:9px; padding:11px 24px; font-size:14px; font-weight:600; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="background:var(--accent-hover);">{{ reflLabel }}</button>
+      <sc-if value="{{ reflOut }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:22px; background:var(--raised); border:1px solid var(--accent-border); border-radius:12px; padding:22px;">
+          <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent); margin-bottom:10px;">Tonight's read</div>
+          <div style="font-size:14.5px; line-height:1.7; color:var(--text2); white-space:pre-wrap;">{{ reflOut }}</div>
+        </div>
+      </sc-if>
+    </section>
+  </sc-if>
+
+  <!-- ==================== WEEKLY REVIEW ==================== -->
+  <sc-if value="{{ mWeekly }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Weekly Review" style="animation:fadeUp 0.3s ease;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px;">
+        <div>
+          <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Weekly Review</h1>
+          <div style="color:var(--muted); font-size:14px;">{{ weekRange }}</div>
+        </div>
+        <button onClick="{{ genWeekly }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:12px; padding:6px 14px; border-radius:7px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ weeklyLabel }}</button>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <sc-for list="{{ weeklySections }}" as="w" hint-placeholder-count="6">
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:22px;">
+            <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:{{ w.hColor }}; margin-bottom:12px;">{{ w.h }}</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <sc-for list="{{ w.items }}" as="i" hint-placeholder-count="3">
+                <div style="display:flex; gap:10px; font-size:14px; line-height:1.55; color:var(--text2);">
+                  <span style="color:var(--faint);">–</span>
+                  <span>{{ i }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== KNOWLEDGE VAULT ==================== -->
+  <sc-if value="{{ mVault }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Knowledge Vault" style="animation:fadeUp 0.3s ease;">
+      <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Knowledge Vault</h1>
+      <div style="color:var(--muted); font-size:14px; margin-bottom:24px;">Everything you've ever written, searchable.</div>
+      <div style="display:flex; gap:10px; margin-bottom:20px;">
+        <input value="{{ q }}" onChange="{{ onSearch }}" placeholder="Search ideas, journal, notes, plans…" style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:13px 16px; color:var(--text); font-size:14.5px; outline:none;" />
+        <button onClick="{{ findConnections }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:13px; padding:0 18px; border-radius:10px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ connLabel }}</button>
+      </div>
+      <sc-if value="{{ connections }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom:20px; background:var(--raised); border:1px solid var(--accent-border); border-radius:12px; padding:20px 22px;">
+          <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent); margin-bottom:10px;">Threads you've forgotten</div>
+          <div style="font-size:14.5px; line-height:1.7; color:var(--text2); white-space:pre-wrap;">{{ connections }}</div>
+        </div>
+      </sc-if>
+      <div style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:11px; color:var(--faint); margin-bottom:12px;">{{ vaultCount }}</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <sc-for list="{{ vaultList }}" as="v" hint-placeholder-count="6">
+          <div style="background:var(--card); border:1px solid var(--line); border-radius:10px; padding:15px 18px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px;">
+              <div style="font-size:14.5px; font-weight:500; color:var(--text);">{{ v.title }}</div>
+              <div style="display:flex; gap:12px; align-items:baseline;">
+                <span style="font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif; font-weight:600; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);">{{ v.tag }}</span>
+                <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:11px; color:var(--faint);">{{ v.date }}</span>
+              </div>
+            </div>
+            <div style="font-size:13.5px; color:var(--muted); line-height:1.55;">{{ v.snippet }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ==================== STRATEGIST ==================== -->
+  <sc-if value="{{ mStrategist }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Strategist" style="animation:fadeUp 0.3s ease; max-width:760px;">
+      <h1 style="margin:0 0 6px; font-size:26px; font-weight:600; letter-spacing:-0.01em; font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Strategist</h1>
+      <div style="color:var(--muted); font-size:14px; margin-bottom:24px;">The view from the top: given who you're trying to become, what actually matters.</div>
+
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent);">Morning: highest-impact actions</div>
+          <button onClick="{{ genMorning }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:12px; padding:5px 12px; border-radius:7px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ morningLabel }}</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <sc-for list="{{ morning }}" as="m" hint-placeholder-count="3">
+            <div style="display:flex; gap:16px;">
+              <span style="font-family:'Oswald', 'Arial Narrow', sans-serif; font-weight:500; font-size:14px; color:var(--accent); flex-shrink:0; margin-top:1px;">{{ m.n }}</span>
+              <div>
+                <div style="font-size:15px; font-weight:500; color:var(--text);">{{ m.action }}</div>
+                <div style="font-size:13px; color:var(--muted); line-height:1.55; margin-top:3px;">{{ m.why }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div style="font-family:'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight:500; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted);">Evening: the debrief</div>
+          <button onClick="{{ genEvening }}" style="background:transparent; border:1px solid var(--chip); color:var(--muted); font-size:12px; padding:5px 12px; border-radius:7px; cursor:pointer; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;" style-hover="color:var(--text); border-color:var(--accent);">{{ eveningLabel }}</button>
+        </div>
+        <div style="font-size:14.5px; line-height:1.7; color:var(--text2); white-space:pre-wrap;">{{ eveningText }}</div>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ err }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:20px; right:20px; background:var(--err-bg); border:1px solid var(--err-border); color:var(--err-text); font-size:13px; padding:12px 18px; border-radius:10px;">{{ err }}</div>
+  </sc-if>
+
+  </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;coachTone&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;direct&quot;, &quot;supportive&quot;, &quot;analytical&quot;], &quot;default&quot;: &quot;direct&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Engine behavior&quot; },
+  &quot;topCount&quot;: { &quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 3, &quot;min&quot;: 1, &quot;max&quot;: 5, &quot;step&quot;: 1, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Engine behavior&quot; }
+}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      module: 'dashboard',
+      // brain dump
+      dumpText: '', dumpBusy: false,
+      dumpItems: [
+        { type: 'Task', text: 'Email Prof. Okafor about extending the thesis lit-review deadline', when: 'Today' },
+        { type: 'Idea', text: 'Sample the tape hiss from dad\u2019s old cassettes for the EP intro', when: 'Today' },
+        { type: 'Deadline', text: 'Signals & Systems problem set 6 due Friday 5pm', when: 'Yesterday' },
+        { type: 'Person', text: 'Maya owes me vocal comps for track 2, follow up gently', when: 'Yesterday' },
+        { type: 'Habit', text: 'Stop checking my phone during study blocks', when: '2d ago' },
+        { type: 'Problem', text: 'Closing shifts are killing next-morning workouts', when: '3d ago' },
+        { type: 'Opportunity', text: 'Record store owner asked if I\u2019d DJ the vinyl night monthly', when: '4d ago' },
+        { type: 'Decision', text: 'Mix the EP myself vs. hire an engineer (~$600)', when: '5d ago' },
+        { type: 'Note', text: 'Deep work feels effortless right after the gym; schedule around it', when: '6d ago' }
+      ],
+      // goals
+      selGoal: 'g1', cascadeBusy: false,
+      goals: [
+        { id: 'g1', area: 'Music', title: 'Release a 5-track EP by December', progress: 38,
+          vision: 'Music is a real second career: my songs are out in the world and people show up to hear them live.',
+          year: ['EP released on all platforms', '3 live sets played, one paid'],
+          quarter: ['Finish production on all 5 tracks', 'Decide: self-mix or hire engineer'],
+          month: ['Lock arrangement for \u201cNight Drive\u201d', 'Record final vocals for track 2 with Maya'],
+          week: ['Comp Maya\u2019s vocal takes', 'Sound-design pass on the Night Drive bridge'],
+          today: ['45 min tonight: arrange the Night Drive bridge'] },
+        { id: 'g2', area: 'School', title: 'Graduate with a 3.7+ GPA', progress: 64,
+          vision: 'Leave school with deep signal-processing skills I actually use, in audio, not just on transcripts.',
+          year: ['3.7+ cumulative GPA at graduation', 'Thesis accepted with distinction'],
+          quarter: ['A\u2212 or better in Signals & Systems', 'Thesis lit review approved'],
+          month: ['Problem sets 5-8 submitted on time', '20 sources annotated for lit review'],
+          week: ['Finish problem set 6', 'Annotate 5 sources'],
+          today: ['90 min: problem set 6, questions 3-5'] },
+        { id: 'g3', area: 'Work', title: 'Save $8,000 by June', progress: 41,
+          vision: 'Enough saved that the first year after graduation is a choice, not a scramble.',
+          year: ['$8,000 in the high-yield account'],
+          quarter: ['$2,400 saved this quarter', 'Ask for the $1.50/hr raise'],
+          month: ['Save $800 this month', 'Pick up 2 extra weekend shifts'],
+          week: ['Transfer $200 on payday', 'Confirm Saturday shift swap'],
+          today: ['Set up the automatic $200 transfer'] },
+        { id: 'g4', area: 'Fitness', title: 'Squat 275 lb and run a sub-25 5K', progress: 52,
+          vision: 'Strong and durable: training is the anchor that keeps everything else steady.',
+          year: ['275 lb squat', 'Sub-25:00 5K race'],
+          quarter: ['245 lb squat', '26:30 5K time trial'],
+          month: ['Squat 3\u00d7/week without missing', 'Two tempo runs per week'],
+          week: ['Push, pull, legs + 1 tempo run', 'Sleep 7+ hrs before leg day'],
+          today: ['6:30 PM: pull day, don\u2019t skip'] },
+      ],
+      // today
+      top3: [
+        { text: 'Finish problem set 6, questions 3-5', area: 'School', done: false },
+        { text: 'Comp Maya\u2019s vocal takes before studio time', area: 'Music', done: false },
+        { text: 'Pull day at 6:30 PM, protect it', area: 'Fitness', done: false }
+      ],
+      replanBusy: false,
+      energy: 3,
+      habits: [
+        { name: 'Gym: push / pull / legs', streak: 9, done: false },
+        { name: '30 min instrument practice', streak: 4, done: true },
+        { name: 'Read 20 pages', streak: 2, done: false },
+        { name: 'Phone out of reach during study', streak: 6, done: true }
+      ],
+      // coach
+      chat: [{ role: 'assistant', content: 'Evening. You\u2019ve got studio time at 8:30 and problem set 6 is still open. What\u2019s on your mind?' }],
+      chatInput: '', chatBusy: false,
+      // patterns
+      patBusy: false,
+      patterns: [
+        'You\u2019ve written about the mixing side-hustle 11 times in six weeks, but it has never once appeared as a scheduled task.',
+        'Your best study blocks are Tuesday and Thursday before 11 AM. Afternoon blocks finish at roughly half that completion rate.',
+        'In every week you skipped the gym twice or more, your reflections mentioned stress about three times as often.',
+        'Deep work reliably stops when your 2 PM shift starts. The studio only ever gets your leftover energy, and Night Drive has slipped twice because of it.'
+      ],
+      // reflection
+      r1: '', r2: '', r3: '', r4: '', r5: '', reflBusy: false, reflOut: null,
+      // weekly
+      weeklyBusy: false,
+      weekly: {
+        wins: ['Problem set 5 back: 94%, best score this term', 'Two full studio sessions; Night Drive verse is locked', 'Gym 4 of 4 planned days, squat up to 235 lb'],
+        fails: ['Lit review untouched for the second week running', 'Slept past 1 AM three nights, all after closing shifts', 'The $200 transfer still isn\u2019t automated'],
+        habits: ['Gym: 4/4 \u00b7 Practice: 5/7 \u00b7 Reading: 2/7 \u00b7 Phone-free study: 6/7'],
+        time: ['School 19h \u00b7 Work 16h \u00b7 Music 7h \u00b7 Training 5h \u00b7 Untracked evenings: ~9h'],
+        progress: ['EP 34% \u2192 38% \u00b7 GPA track: steady \u00b7 Savings 39% \u2192 41% \u00b7 Squat +10 lb'],
+        changes: ['Move lit review to Tue/Thu mornings, your proven deep-work slots', 'Swap one closing shift; late closes cost you the next morning', 'Automate the transfer Friday, then stop thinking about money daily']
+      },
+      // vault
+      q: '', connBusy: false, connections: null,
+      vault: [
+        { title: 'EP concept: \u201cNight Drive\u201d', tag: 'Idea', date: 'Jun 02', snippet: 'Five tracks that map one late drive home: leaving, tunnel, coast, gas station, arrival. Tape hiss as connective tissue.' },
+        { title: 'Journal: after the open mic', tag: 'Journal', date: 'Jun 14', snippet: 'Played two songs. Hands shook for the first thirty seconds and then it was the best I\u2019ve felt in months. More of this.' },
+        { title: 'Mixing notes: low-end masterclass', tag: 'Notes', date: 'Jun 20', snippet: 'High-pass everything except kick and bass. Mono below 120Hz. Reference on three systems before trusting a mix.' },
+        { title: 'Thesis direction: audio DSP', tag: 'Research', date: 'Jun 25', snippet: 'Real-time pitch correction artifacts as the thesis angle; overlaps School and Music. Okafor seemed into it.' },
+        { title: 'Money rules', tag: 'Plan', date: 'Jul 01', snippet: '$200/paycheck automatic. Gear purchases only from DJ/gig income, never from savings. The interface can wait.' },
+        { title: 'Book: Deep Work, ch. 3', tag: 'Notes', date: 'Jul 03', snippet: 'Schedule every minute of the workday; treat the schedule as a hypothesis, revise without guilt.' }
+      ],
+      // strategist
+      morningBusy: false, eveningBusy: false, eveningText: 'Run the debrief tonight: it reads today\u2019s tasks, habits, and reflection, then reshapes tomorrow.',
+      morning: [
+        { action: 'Problem set 6 before 11 AM, your proven window', why: 'It\u2019s due Friday and gates the GPA goal. Morning-you finishes these in half the time.' },
+        { action: 'Send Maya one specific ask: comps by Thursday', why: 'Track 2 is the EP\u2019s critical path. One clear message unblocks two weeks of drift.' },
+        { action: 'Automate the $200 transfer: 10 minutes, then never again', why: 'It\u2019s been on the list 9 days. Recurring guilt costs more attention than the task.' }
+      ],
+      err: null,
+      dark: false
+    };
+    this._chatRef = React.createRef();
+  }
+
+  componentDidMount() {
+    try {
+      const dark = localStorage.getItem('life-org-theme') === 'dark';
+      if (dark) { this.setState({ dark: true }); this.applyTheme(true); }
+    } catch (e) {}
+    try {
+      const raw = localStorage.getItem('life-org-v2');
+      if (raw) {
+        const s = this.clean(JSON.parse(raw));
+        this.setState({
+          dumpItems: s.dumpItems || this.state.dumpItems,
+          habits: s.habits || this.state.habits,
+          top3: s.top3 || this.state.top3,
+          energy: s.energy || this.state.energy,
+          chat: s.chat && s.chat.length ? s.chat : this.state.chat
+        });
+      }
+    } catch (e) {}
+  }
+
+  applyTheme(dark) {
+    const P = { '--bg':['#FDFCF9','#2B2B2F'], '--card':['#FFFFFF','#35353B'], '--raised':['#F8F6EF','#3F3F46'], '--line':['#F1EFE7','#3C3C43'], '--border':['#E9E6DB','#4A4A52'], '--chip':['#DBD6C6','#585862'], '--box':['#C9C3B0','#686873'], '--accent-border':['#E9D9B4','#766340'], '--track':['#F0EEE4','#44444D'], '--faint':['#A39A87','#98989F'], '--muted':['#7E7663','#BCBCC3'], '--text2':['#4C463A','#E2E2E6'], '--text':['#26221A','#F4F4F6'], '--accent':['#B07F2C','#E0A458'], '--accent-hover':['#C79A4D','#EDC088'], '--on-accent':['#FFFDF6','#1F1F22'], '--hover-tint':['rgba(176,127,44,0.06)','rgba(224,164,88,0.08)'], '--active-tint':['rgba(176,127,44,0.09)','rgba(224,164,88,0.12)'], '--bubble-tint':['rgba(176,127,44,0.09)','rgba(224,164,88,0.14)'], '--bar2':['#B5A87F','#9C9C8A'], '--dot-idle':['#D9D3C1','#5E5E69'], '--good':['#6E7F3F','#AEBB88'], '--bad':['#B0563F','#D18A7A'], '--mid':['#8A7A5A','#C2C2B4'], '--tag-project':['#A5691F','#D0955C'], '--tag-deadline':['#B05E33','#D8967A'], '--tag-idea':['#A5852B','#DCBE78'], '--tag-decision':['#8A66A8','#C2A6D4'], '--tag-note':['#82755C','#A8A89E'], '--err-bg':['#FAEFE4','#3A2A24'], '--err-border':['#D9A98C','#7A5342'], '--err-text':['#A0522E','#E0AC98'] };
+    Object.keys(P).forEach(k => document.documentElement.style.setProperty(k, P[k][dark ? 1 : 0]));
+  }
+
+  toggleTheme() {
+    const dark = !this.state.dark;
+    this.setState({ dark });
+    this.applyTheme(dark);
+    try { localStorage.setItem('life-org-theme', dark ? 'dark' : 'light'); } catch (e) {}
+  }
+
+  clean(v) {
+    if (typeof v === 'string') return v.replace(/\s*\u2014\s*/g, ', ').replace(/(\d)\u2013(\d)/g, '$1-$2').replace(/\s*\u2013\s*/g, '-');
+    if (Array.isArray(v)) return v.map(x => this.clean(x));
+    if (v && typeof v === 'object') { const o = {}; Object.keys(v).forEach(k => { o[k] = this.clean(v[k]); }); return o; }
+    return v;
+  }
+
+  save() {
+    try {
+      const { dumpItems, habits, top3, energy, chat } = this.state;
+      localStorage.setItem('life-org-v2', JSON.stringify({ dumpItems, habits, top3, energy, chat }));
+    } catch (e) {}
+  }
+
+  set(patch) { this.setState(patch, () => this.save()); }
+
+  fail(e) {
+    this.setState({ err: 'Couldn\u2019t reach the engine, try again in a moment.' });
+    setTimeout(() => this.setState({ err: null }), 4000);
+  }
+
+  parseJSON(text) {
+    let t = String(text).replace(/```json|```/g, '').trim();
+    const a = t.indexOf('['), o = t.indexOf('{');
+    let start = (a === -1) ? o : (o === -1 ? a : Math.min(a, o));
+    if (start > 0) t = t.slice(start);
+    const end = Math.max(t.lastIndexOf(']'), t.lastIndexOf('}'));
+    if (end !== -1) t = t.slice(0, end + 1);
+    return JSON.parse(t);
+  }
+
+  context() {
+    const s = this.state;
+    const g = s.goals.map(g => `- [${g.area}] ${g.title} (${g.progress}% done). This week: ${g.week.join('; ')}`).join('\n');
+    const t = s.top3.map(t => `- ${t.text}${t.done ? ' (done)' : ''}`).join('\n');
+    const h = s.habits.map(h => `- ${h.name}: ${h.streak}-day streak, ${h.done ? 'done today' : 'not done today'}`).join('\n');
+    const d = s.dumpItems.slice(0, 10).map(d => `- (${d.type}) ${d.text}`).join('\n');
+    const p = s.patterns.map(p => `- ${p}`).join('\n');
+    return `You are the quiet engine inside a personal life-organization system. The user is a student who works part-time at a record store, is producing a 5-track EP ("Night Drive"), and trains (squat + 5K). Never mention being an AI; speak like a sharp, warm, plainspoken coach. Be concrete and reference their real data.\n\nGOALS:\n${g}\n\nTODAY'S TOP TASKS:\n${t}\n\nHABITS:\n${h}\n\nRECENT BRAIN DUMP:\n${d}\n\nOBSERVED PATTERNS:\n${p}\n\nNever use an em dash in any response; use commas, colons, or periods instead.`;
+  }
+
+  tone() {
+    const t = (this.props && this.props.coachTone) || 'direct';
+    return { direct: 'Be direct and brief. No fluff.', supportive: 'Be warm and encouraging first, practical second.', analytical: 'Be analytical: reason from the data, cite specifics.' }[t] || '';
+  }
+
+  // ---------- brain dump ----------
+  async captureDump() {
+    const text = this.state.dumpText.trim();
+    if (!text || this.state.dumpBusy) return;
+    this.setState({ dumpBusy: true });
+    try {
+      const out = await window.claude.complete(
+        'Split this brain dump into atomic items and classify each. Types: Task, Project, Goal, Person, Deadline, Habit, Problem, Opportunity, Decision, Idea, Note. Reply ONLY with a JSON array like [{"type":"Task","text":"..."}]. Keep each text under 120 chars, first person preserved. Never use em dashes.\n\nBrain dump:\n' + text
+      );
+      const items = this.clean(this.parseJSON(out)).map(i => ({ type: i.type || 'Note', text: i.text, when: 'Just now' }));
+      this.set({ dumpItems: [...items, ...this.state.dumpItems], dumpText: '', dumpBusy: false });
+    } catch (e) { this.setState({ dumpBusy: false }); this.fail(e); }
+  }
+
+  // ---------- coach ----------
+  async sendChatText(text) {
+    if (!text.trim() || this.state.chatBusy) return;
+    const chat = [...this.state.chat, { role: 'user', content: text.trim() }];
+    this.set({ chat, chatInput: '', chatBusy: true });
+    this.scrollChat();
+    try {
+      const reply = await window.claude.complete({
+        system: this.context() + '\n' + this.tone() + ' Keep replies under 120 words.',
+        messages: chat.map(m => ({ role: m.role, content: m.content }))
+      });
+      this.set({ chat: [...chat, { role: 'assistant', content: this.clean(reply) }], chatBusy: false });
+      this.scrollChat();
+    } catch (e) { this.setState({ chatBusy: false }); this.fail(e); }
+  }
+
+  scrollChat() {
+    setTimeout(() => { const el = this._chatRef.current; if (el) el.scrollTop = el.scrollHeight; }, 60);
+  }
+
+  // ---------- goal cascade ----------
+  async regenCascade() {
+    if (this.state.cascadeBusy) return;
+    const g = this.state.goals.find(x => x.id === this.state.selGoal);
+    this.setState({ cascadeBusy: true });
+    try {
+      const out = await window.claude.complete(
+        this.context() + `\n\nRebuild the roadmap for the goal "${g.title}" (currently ${g.progress}% complete), reflecting current progress. Reply ONLY with JSON: {"vision":"one sentence","year":["1-2 items"],"quarter":["2 items"],"month":["2 items"],"week":["2 items"],"today":["1 item"]}. Each item under 90 chars, concrete and specific to this person.`
+      );
+      const c = this.clean(this.parseJSON(out));
+      const goals = this.state.goals.map(x => x.id === g.id ? { ...x, vision: c.vision || x.vision, year: c.year || x.year, quarter: c.quarter || x.quarter, month: c.month || x.month, week: c.week || x.week, today: c.today || x.today } : x);
+      this.setState({ goals, cascadeBusy: false });
+    } catch (e) { this.setState({ cascadeBusy: false }); this.fail(e); }
+  }
+
+  // ---------- top3 ----------
+  async replanTop() {
+    if (this.state.replanBusy) return;
+    const n = (this.props && this.props.topCount) || 3;
+    this.setState({ replanBusy: true });
+    try {
+      const out = await window.claude.complete(
+        this.context() + `\n\nPick the ${n} highest-impact tasks for today given the schedule (lecture 9:00 AM, study 11:30 AM, work shift 2:00 PM, gym 6:30 PM, studio 8:30 PM). Always write times in 12-hour AM/PM format. Reply ONLY with JSON: [{"text":"...","area":"Music|School|Work|Fitness"}]. Each under 70 chars.`
+      );
+      const items = this.clean(this.parseJSON(out)).slice(0, n).map(i => ({ text: i.text, area: i.area || 'School', done: false }));
+      this.set({ top3: items, replanBusy: false });
+    } catch (e) { this.setState({ replanBusy: false }); this.fail(e); }
+  }
+
+  // ---------- patterns ----------
+  async genPatterns() {
+    if (this.state.patBusy) return;
+    this.setState({ patBusy: true });
+    try {
+      const out = await window.claude.complete(
+        this.context() + '\n\nAct as an objective observer. Surface 4 behavioral patterns this person likely hasn\u2019t noticed, drawn from the data above. Each one specific, slightly uncomfortable, evidence-flavored (counts, days, times). Reply ONLY with a JSON array of 4 strings, each under 180 chars.'
+      );
+      this.setState({ patterns: this.clean(this.parseJSON(out)).slice(0, 5), patBusy: false });
+    } catch (e) { this.setState({ patBusy: false }); this.fail(e); }
+  }
+
+  // ---------- reflection ----------
+  async submitRefl() {
+    const s = this.state;
+    if (s.reflBusy) return;
+    const answers = [s.r1, s.r2, s.r3, s.r4, s.r5];
+    if (!answers.some(a => a.trim())) return;
+    this.setState({ reflBusy: true });
+    const qs = ['What went well?', 'What didn\u2019t?', 'What distracted you?', 'Did today move you toward your goals?', 'What should tomorrow focus on?'];
+    try {
+      const out = await window.claude.complete(
+        this.context() + '\n' + this.tone() + '\n\nTonight\u2019s reflection:\n' + qs.map((q, i) => q + '\n' + (answers[i] || '(skipped)')).join('\n\n') + '\n\nRespond in under 100 words: one honest observation, one thing to protect tomorrow, one thing to drop. Plain text, no headers.'
+      );
+      this.setState({ reflOut: this.clean(out), reflBusy: false });
+    } catch (e) { this.setState({ reflBusy: false }); this.fail(e); }
+  }
+
+  // ---------- weekly ----------
+  async genWeekly() {
+    if (this.state.weeklyBusy) return;
+    this.setState({ weeklyBusy: true });
+    try {
+      const out = await window.claude.complete(
+        this.context() + '\n\nWrite this week\u2019s review. Reply ONLY with JSON: {"wins":["3 items"],"fails":["3 items"],"habits":["1 summary line"],"time":["1 summary line"],"progress":["1 summary line"],"changes":["3 recommended changes"]}. Concrete, specific to this person, each item under 110 chars.'
+      );
+      const w = this.clean(this.parseJSON(out));
+      this.setState({ weekly: { ...this.state.weekly, ...w }, weeklyBusy: false });
+    } catch (e) { this.setState({ weeklyBusy: false }); this.fail(e); }
+  }
+
+  // ---------- vault ----------
+  async findConnections() {
+    if (this.state.connBusy) return;
+    this.setState({ connBusy: true });
+    try {
+      const notes = this.state.vault.map(v => `- ${v.title} (${v.tag}, ${v.date}): ${v.snippet}`).join('\n');
+      const out = await window.claude.complete(
+        this.context() + '\n\nVAULT:\n' + notes + '\n\nFind 2-3 non-obvious connections between these notes and the goals: threads the person has forgotten. Under 90 words total, plain text, one connection per line starting with \u2022.'
+      );
+      this.setState({ connections: this.clean(out), connBusy: false });
+    } catch (e) { this.setState({ connBusy: false }); this.fail(e); }
+  }
+
+  // ---------- strategist ----------
+  async genMorning() {
+    if (this.state.morningBusy) return;
+    this.setState({ morningBusy: true });
+    try {
+      const out = await window.claude.complete(
+        this.context() + '\n\nYou are the strategist. If this person wants to become who they described in their visions, what are the 3 highest-impact actions today? Reply ONLY with JSON: [{"action":"under 70 chars","why":"under 120 chars"}].'
+      );
+      this.setState({ morning: this.clean(this.parseJSON(out)).slice(0, 3), morningBusy: false });
+    } catch (e) { this.setState({ morningBusy: false }); this.fail(e); }
+  }
+
+  async genEvening() {
+    if (this.state.eveningBusy) return;
+    this.setState({ eveningBusy: true });
+    try {
+      const done = this.state.top3.filter(t => t.done).map(t => t.text).join('; ') || 'nothing marked done yet';
+      const out = await window.claude.complete(
+        this.context() + `\n\nCompleted today: ${done}.\n\nEvening debrief in under 110 words, plain text: what moved them closer to their goals, what slowed them down, and how tomorrow\u2019s plan should change. ` + this.tone()
+      );
+      this.setState({ eveningText: this.clean(out), eveningBusy: false });
+    } catch (e) { this.setState({ eveningBusy: false }); this.fail(e); }
+  }
+
+  renderVals() {
+    const s = this.state;
+    const now = new Date();
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const hr = now.getHours();
+    const greeting = hr < 12 ? 'Good morning.' : hr < 18 ? 'Good afternoon.' : 'Good evening.';
+
+    const groups = [
+      { label: 'Overview', items: [ { key: 'dashboard', label: 'Life Dashboard' } ] },
+      { label: 'Capture', items: [ { key: 'dump', label: 'Brain Dump' }, { key: 'vault', label: 'Knowledge Vault' } ] },
+      { label: 'Plan', items: [ { key: 'goals', label: 'Goal Center' }, { key: 'roadmaps', label: 'Roadmaps' }, { key: 'strategist', label: 'Strategist' } ] },
+      { label: 'Review', items: [ { key: 'coach', label: 'Coach' }, { key: 'reflect', label: 'Reflection' }, { key: 'weekly', label: 'Weekly Review' }, { key: 'patterns', label: 'Patterns' } ] }
+    ];
+    const nav = groups.map(g => ({ label: g.label, items: g.items.map(it => {
+      const active = s.module === it.key;
+      return { label: it.label, go: () => this.setState({ module: it.key }),
+        bg: active ? 'var(--active-tint)' : 'transparent',
+        color: active ? 'var(--text)' : 'var(--muted)',
+        dot: active ? 'var(--accent)' : 'transparent' };
+    }) }));
+
+    const tagColors = { Task: 'var(--accent)', Project: 'var(--tag-project)', Goal: 'var(--accent)', Person: 'var(--mid)', Deadline: 'var(--tag-deadline)', Habit: 'var(--good)', Problem: 'var(--bad)', Opportunity: 'var(--tag-idea)', Decision: 'var(--tag-decision)', Idea: 'var(--tag-idea)', Note: 'var(--tag-note)' };
+
+    const sel = s.goals.find(g => g.id === s.selGoal) || s.goals[0];
+    const cascadeLevels = [
+      { label: 'Vision', items: [sel.vision], color: 'var(--text)' },
+      { label: '1-Year', items: sel.year, color: 'var(--text2)' },
+      { label: 'Quarterly', items: sel.quarter, color: 'var(--text2)' },
+      { label: 'Monthly', items: sel.month, color: 'var(--text2)' },
+      { label: 'This week', items: sel.week, color: 'var(--text2)' },
+      { label: 'Today', items: sel.today, color: 'var(--accent)' }
+    ].map((l, i, arr) => ({ ...l, dot: i === 0 || i === arr.length - 1 ? 'var(--accent)' : 'var(--dot-idle)', line: i === arr.length - 1 ? 'none' : 'block' }));
+
+    const doneCount = s.top3.filter(t => t.done).length;
+    const habitsDoneN = s.habits.filter(h => h.done).length;
+    const focusScore = Math.min(99, Math.round(42 + doneCount * 14 + habitsDoneN * 7));
+
+    const mk = (labels, cur, c) => labels.map((l, i) => ({
+      label: l,
+      hasLine: i > 0,
+      lineColor: i <= cur ? c : 'var(--track)',
+      dotBg: i < cur ? c : (i === cur ? 'var(--card)' : 'var(--track)'),
+      dotBorder: i <= cur ? c : 'var(--box)',
+      labelColor: i === cur ? 'var(--text)' : (i < cur ? 'var(--muted)' : 'var(--faint)'),
+      labelWeight: i === cur ? '600' : '400'
+    }));
+
+    const projects = [
+      { name: 'EP: Night Drive', stage: 'Production', pct: '38%', map: mk(['Writing', 'Production', 'Mixing', 'Master', 'Release'], 1, '#AFC4E0'), fields: [
+        { k: 'Next milestone', v: 'All stems locked' }, { k: 'Est. completion', v: 'Dec 5' },
+        { k: 'Dependencies', v: 'Vocal comps from Maya' }, { k: 'Risks', v: 'Sound-design scope creep' },
+        { k: 'Skills needed', v: 'Mixing low-end, vocal tuning' }, { k: 'Resources', v: 'Studio Tue/Thu, reference tracks' } ] },
+      { name: 'Senior thesis', stage: 'Research', pct: '22%', map: mk(['Topic', 'Research', 'Lit review', 'Draft', 'Defend'], 1, '#B4D6BC'), fields: [
+        { k: 'Next milestone', v: 'Lit review draft' }, { k: 'Est. completion', v: 'Apr 20' },
+        { k: 'Dependencies', v: 'Okafor sign-off on scope' }, { k: 'Risks', v: 'Competing with EP deadline in Nov' },
+        { k: 'Skills needed', v: 'Academic writing, DSP math' }, { k: 'Resources', v: 'Library access, Zotero' } ] },
+      { name: '5K training block', stage: 'Week 4 of 8', pct: '50%', map: mk(['Base', 'Build', 'Peak', 'Taper', 'Race'], 1, '#F0BFB0'), fields: [
+        { k: 'Next milestone', v: '26:30 time trial' }, { k: 'Est. completion', v: 'Aug 30' },
+        { k: 'Dependencies', v: 'None' }, { k: 'Risks', v: 'Closing shifts \u2192 skipped mornings' },
+        { k: 'Skills needed', v: 'Pacing discipline' }, { k: 'Resources', v: 'Track on Tuesdays, watch' } ] },
+      { name: 'Home studio upgrade', stage: 'Saving', pct: '61%', map: mk(['Research', 'Saving', 'Purchase', 'Setup'], 1, '#CDBFE6'), fields: [
+        { k: 'Next milestone', v: 'Buy audio interface' }, { k: 'Est. completion', v: 'Sep 15' },
+        { k: 'Dependencies', v: 'DJ-night income only (money rule)' }, { k: 'Risks', v: 'Impulse-buying before the EP ships' },
+        { k: 'Skills needed', v: 'None' }, { k: 'Resources', v: '$430 of $700 saved' } ] }
+    ];
+
+    const areas = [
+      { name: 'Career', score: 61, trend: '+4', note: 'DJ-night offer opens a door' },
+      { name: 'Money', score: 54, trend: '+2', note: '41% to the $8k target' },
+      { name: 'Health', score: 71, trend: '+5', note: '9-day gym streak, best yet' },
+      { name: 'Learning', score: 78, trend: '+3', note: 'PS5 at 94%; thesis lagging' },
+      { name: 'Relationships', score: 60, trend: '-2', note: 'Two cancelled hangouts running' },
+      { name: 'Projects', score: 66, trend: '+4', note: 'EP moving; thesis stalled' },
+      { name: 'Habits', score: 74, trend: '+6', note: 'Phone-free study is sticking' },
+      { name: 'Mental clarity', score: 58, trend: '+1', note: 'Better on gym days' },
+      { name: 'Energy', score: 65, trend: '0', note: 'Dips hard after closing shifts' },
+      { name: 'Stress', score: 47, trend: '-3', note: 'Rises when training slips' }
+    ].map((a, i) => {
+      const C = [
+        ['#AFC4E0', '#C9D8EC'], // powder blue
+        ['#B4D6BC', '#CDE5D3'], // pastel green
+        ['#F0BFB0', '#F7D6CB'], // peach
+        ['#CDBFE6', '#DFD5F0'], // lavender
+        ['#EFC3D3', '#F6D8E3'], // blush
+        ['#EFD9A8', '#F6E6C3'], // butter
+        ['#B2DCD3', '#CBE9E2'], // mint
+        ['#C9D6A8', '#DBE4C2'], // pistachio
+        ['#F0CFA6', '#F6DFC1'], // apricot
+        ['#CFC5D2', '#DFD8E1']  // grey-lilac
+      ][i % 10];
+      return { ...a, pct: a.score + '%',
+        color: 'var(--text2)',
+        barBg: 'linear-gradient(to right, ' + C[0] + ', ' + C[1] + ')',
+        trendColor: a.trend.startsWith('+') ? '#4FA372' : a.trend === '0' ? 'var(--faint)' : '#D9705F' };
+    });
+
+    const filtered = s.q.trim() ? s.vault.filter(v => (v.title + ' ' + v.snippet + ' ' + v.tag).toLowerCase().includes(s.q.toLowerCase())) : s.vault;
+
+    const weeklySections = [
+      { h: 'Biggest wins', items: s.weekly.wins, hColor: 'var(--good)' },
+      { h: 'Biggest failures', items: s.weekly.fails, hColor: 'var(--bad)' },
+      { h: 'Habits', items: s.weekly.habits, hColor: 'var(--muted)' },
+      { h: 'Time spent', items: s.weekly.time, hColor: 'var(--muted)' },
+      { h: 'Progress', items: s.weekly.progress, hColor: 'var(--muted)' },
+      { h: 'Recommended changes', items: s.weekly.changes, hColor: 'var(--accent)' }
+    ];
+
+    const reflQs = [
+      { q: 'What went well today?', key: 'r1' }, { q: 'What didn\u2019t?', key: 'r2' },
+      { q: 'What distracted you?', key: 'r3' }, { q: 'Did today\u2019s work move you toward your goals?', key: 'r4' },
+      { q: 'What should tomorrow focus on?', key: 'r5' }
+    ].map(x => ({ q: x.q, val: s[x.key], set: (e) => this.setState({ [x.key]: e.target.value }) }));
+
+    const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+
+    return {
+      dateShort: `${months[now.getMonth()].slice(0,3).toUpperCase()} ${now.getDate()} \u00b7 ${now.getFullYear()}`,
+      dateLong: `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`,
+      weekRange: `${months[monday.getMonth()].slice(0,3)} ${monday.getDate()} to ${months[sunday.getMonth()].slice(0,3)} ${sunday.getDate()}`,
+      greeting, nav,
+      mDump: s.module === 'dump', mGoals: s.module === 'goals',
+      mCoach: s.module === 'coach', mPatterns: s.module === 'patterns', mRoadmaps: s.module === 'roadmaps',
+      mReflect: s.module === 'reflect', mWeekly: s.module === 'weekly', mVault: s.module === 'vault',
+      mDashboard: s.module === 'dashboard', mStrategist: s.module === 'strategist',
+      err: s.err,
+      toggleTheme: () => this.toggleTheme(),
+      themeLabel: s.dark ? 'Dark mode' : 'Light mode',
+      swBg: s.dark ? 'var(--accent)' : 'var(--box)',
+      swLeft: s.dark ? '13px' : '2px',
+
+      // today
+      topCount: (this.props && this.props.topCount) || 3,
+      top3: s.top3.map((t, i) => ({ n: String(i + 1), text: t.text, area: t.area,
+        color: t.done ? 'var(--faint)' : 'var(--text)', deco: t.done ? 'line-through' : 'none',
+        check: t.done ? '\u2713' : '', boxBg: t.done ? 'var(--accent)' : 'transparent', boxBorder: t.done ? 'var(--accent)' : 'var(--box)',
+        toggle: () => { const top3 = s.top3.map((x, j) => j === i ? { ...x, done: !x.done } : x); this.set({ top3 }); } })),
+      replanTop: () => this.replanTop(), replanLabel: s.replanBusy ? 'Replanning\u2026' : 'Replan',
+      schedule: [
+        { t: '9:00 AM', label: 'Lecture: Signals & Systems', tag: 'School' },
+        { t: '11:30 AM', label: 'Study block: problem set 6', tag: 'School' },
+        { t: '2:00 PM', label: 'Shift: record store', tag: 'Work' },
+        { t: '6:30 PM', label: 'Gym: pull day', tag: 'Fitness' },
+        { t: '8:30 PM', label: 'Studio: Night Drive bridge', tag: 'Music' }
+      ],
+      goalStrip: s.goals.map(g => ({ title: g.title, pct: g.progress + '%' })),
+      projectStrip: projects.map(p => ({ name: p.name, stage: p.stage, pct: p.pct })),
+      focusScore: String(focusScore), habitsDone: habitsDoneN + '/' + s.habits.length,
+      habits: s.habits.map((h, i) => ({ name: h.name, streak: String(h.streak),
+        color: h.done ? 'var(--faint)' : 'var(--text2)', check: h.done ? '\u2713' : '',
+        boxBg: h.done ? 'var(--accent)' : 'transparent', boxBorder: h.done ? 'var(--accent)' : 'var(--box)',
+        toggle: () => { const habits = s.habits.map((x, j) => j === i ? { ...x, done: !x.done } : x); this.set({ habits }); } })),
+
+      // dump
+      dumpText: s.dumpText, onDumpText: (e) => this.setState({ dumpText: e.target.value }),
+      captureDump: () => this.captureDump(), captureLabel: s.dumpBusy ? 'Sorting\u2026' : 'Capture',
+      dumpStatus: s.dumpBusy ? 'Reading, splitting, filing\u2026' : 'Tasks, people, deadlines, ideas, all filed automatically.',
+      dumpList: s.dumpItems.slice(0, 20).map(d => ({ ...d, tagColor: tagColors[d.type] || 'var(--tag-note)', tagBorder: 'var(--chip)' })),
+
+      // goals
+      goalCards: s.goals.map(g => ({ area: g.area, title: g.title, pct: g.progress + '%',
+        bg: g.id === s.selGoal ? 'var(--raised)' : 'var(--card)', border: g.id === s.selGoal ? 'var(--accent-border)' : 'var(--line)',
+        select: () => this.setState({ selGoal: g.id }) })),
+      selArea: sel.area, selTitle: sel.title, cascade: cascadeLevels,
+      regenCascade: () => this.regenCascade(), cascadeLabel: s.cascadeBusy ? 'Recalculating\u2026' : 'Recalculate roadmap',
+
+      // coach
+      chatMsgs: s.chat.map(m => m.role === 'user'
+        ? { ...m, align: 'flex-end', bg: 'var(--bubble-tint)', border: 'var(--accent-border)', color: 'var(--text)' }
+        : { ...m, align: 'flex-start', bg: 'var(--raised)', border: 'var(--border)', color: 'var(--text2)' }),
+      chatBusy: s.chatBusy, chatRef: this._chatRef,
+      chatInput: s.chatInput, onChatInput: (e) => this.setState({ chatInput: e.target.value }),
+      onChatKey: (e) => { if (e.key === 'Enter') this.sendChatText(s.chatInput); },
+      sendChat: () => this.sendChatText(s.chatInput),
+      chatChips: ['I\u2019m overwhelmed.', 'What should I work on next?', 'What have I been avoiding?', 'Am I wasting time?'].map(t => ({ text: t, send: () => this.sendChatText(t) })),
+
+      // patterns
+      patternList: s.patterns.map((p, i) => ({ n: '0' + (i + 1), text: p })),
+      genPatterns: () => this.genPatterns(), patLabel: s.patBusy ? 'Looking\u2026' : 'Look again',
+
+      // roadmaps
+      projects,
+
+      // reflection
+      reflQs, submitRefl: () => this.submitRefl(),
+      reflLabel: s.reflBusy ? 'Reading\u2026' : 'Close out the day', reflOut: s.reflOut,
+
+      // weekly
+      weeklySections, genWeekly: () => this.genWeekly(),
+      weeklyLabel: s.weeklyBusy ? 'Compiling\u2026' : 'Rebuild from this week\u2019s data',
+
+      // vault
+      q: s.q, onSearch: (e) => this.setState({ q: e.target.value }),
+      vaultList: filtered, vaultCount: filtered.length + ' of ' + s.vault.length + ' entries',
+      findConnections: () => this.findConnections(), connLabel: s.connBusy ? 'Tracing\u2026' : 'Surface connections',
+      connections: s.connections,
+
+      // dashboard
+      areas,
+
+      // strategist
+      morning: s.morning.map((m, i) => ({ ...m, n: '0' + (i + 1) })),
+      genMorning: () => this.genMorning(), morningLabel: s.morningBusy ? 'Thinking\u2026' : 'Refresh',
+      genEvening: () => this.genEvening(), eveningLabel: s.eveningBusy ? 'Reviewing\u2026' : 'Run the debrief',
+      eveningText: s.eveningText
+    };
+  }
+}
+</script>
+</body>
+</html>
