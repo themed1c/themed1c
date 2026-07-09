@@ -17,6 +17,7 @@ export default function Coach() {
   };
 
   const submit = () => {
+    if (app.busy.chat) return; // keep the draft; a reply is still in flight
     const text = input;
     setInput('');
     send(text);

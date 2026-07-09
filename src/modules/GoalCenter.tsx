@@ -226,7 +226,10 @@ export default function GoalCenter() {
                                 onChange={(e) => setDraft(e.target.value)}
                                 onBlur={commitEdit}
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                    e.currentTarget.blur();
+                                  }
+                                  if (e.key === 'Escape') setEditing(null); // cancel, no commit
                                 }}
                                 style={{
                                   fontSize: 14,

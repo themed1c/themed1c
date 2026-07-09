@@ -35,13 +35,18 @@ declare global {
 
 /** Fill anything a stored (possibly older) snapshot is missing from the seed.
  *  Settings merge field-by-field so new options get their defaults instead of
- *  coming back undefined for existing data. */
+ *  coming back undefined for existing data. Keys carrying undefined (possible
+ *  from older Electron databases over IPC) are dropped so they cannot shadow
+ *  the seed defaults. */
 function withDefaults(loaded: Partial<PersistedState>): PersistedState {
   const seed = seedState();
+  const clean = Object.fromEntries(
+    Object.entries(loaded).filter(([, v]) => v !== undefined && v !== null),
+  ) as Partial<PersistedState>;
   return {
     ...seed,
-    ...loaded,
-    settings: { ...seed.settings, ...(loaded.settings ?? {}) },
+    ...clean,
+    settings: { ...seed.settings, ...(clean.settings ?? {}) },
   };
 }
 
@@ -55,6 +60,7 @@ class ElectronBackend implements Backend {
 
   async load(): Promise<PersistedState> {
     const loaded = await this.bridge.load();
+    hadLocalData = !!loaded;
     if (loaded) return withDefaults(loaded);
     const seed = seedState();
     await this.bridge.save(seed);
@@ -71,6 +77,10 @@ class ElectronBackend implements Backend {
 }
 
 const LS_KEY = 'life-org-v2';
+
+/** Last full state this session has seen: the safety net that prevents a
+ *  corrupted localStorage read from truncating everything to one patch. */
+let memoryFull: Partial<PersistedState> = {};
 
 class BrowserBackend implements Backend {
   kind = 'browser' as const;
@@ -93,23 +103,35 @@ class BrowserBackend implements Backend {
     }
     hadLocalData = !!local;
     // If the browser was wiped but a live data file is already readable,
-    // recover from the file without any user action.
+    // recover from the file without any user action, and write it straight
+    // back into localStorage so later saves merge over the full state.
     if (!local) {
       const fromFile = await readDataFile();
-      if (fromFile) return withDefaults(fromFile);
+      if (fromFile) {
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify(fromFile));
+          hadLocalData = true;
+        } catch {
+          /* storage still unavailable; memoryFull covers this session */
+        }
+        memoryFull = fromFile;
+        return withDefaults(fromFile);
+      }
     }
+    memoryFull = local ?? {};
     return local ? withDefaults(local) : seedState();
   }
 
   async save(patch: Partial<PersistedState>): Promise<void> {
-    let current: Partial<PersistedState> = {};
+    let current: Partial<PersistedState> | null = null;
     try {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) current = JSON.parse(raw) as Partial<PersistedState>;
     } catch {
-      /* start fresh */
+      /* unreadable right now: fall back to this session's last known state */
     }
-    const full = { ...current, ...patch };
+    const full = { ...(current ?? memoryFull), ...patch };
+    memoryFull = full;
     localStorage.setItem(LS_KEY, JSON.stringify(full));
     scheduleDataFileWrite(full as PersistedState);
   }

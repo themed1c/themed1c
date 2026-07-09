@@ -350,6 +350,19 @@ const ok = (name, pass, detail = '') => {
     `covers ${summarized.n} messages, summary ${summarized.len} chars`,
   );
 
+  /* ---- pre-onboarding data never sees the wizard (upgrade safety) ---- */
+  await page.evaluate(() => {
+    const parsed = JSON.parse(localStorage.getItem('life-org-v2'));
+    delete parsed.settings.onboarded; // simulate data from an older build
+    localStorage.setItem('life-org-v2', JSON.stringify(parsed));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(800);
+  ok(
+    'existing data skips onboarding',
+    !/Keep the sample data/.test(await page.locator('body').innerText()),
+  );
+
   /* ---- fresh onboarding path: questions in, sample data out ---- */
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'networkidle' });

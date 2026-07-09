@@ -77,10 +77,11 @@ export const prompts = {
     );
   },
 
-  replanTop(context: string, n: number, schedule: string): string {
+  replanTop(context: string, n: number, schedule: string, areas: string[]): string {
+    const areaList = areas.length ? areas.join('|') : 'General';
     return (
       context +
-      `\n\nPick the ${n} highest-impact tasks for today given the schedule (${schedule}). Always write times in 12-hour AM/PM format. Reply ONLY with JSON: [{"text":"...","area":"Music|School|Work|Fitness"}]. Each under 70 chars.`
+      `\n\nPick the ${n} highest-impact tasks for today given the schedule (${schedule}). Always write times in 12-hour AM/PM format. Reply ONLY with JSON: [{"text":"...","area":"${areaList}"}]. Each under 70 chars.`
     );
   },
 

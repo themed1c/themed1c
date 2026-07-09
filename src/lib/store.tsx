@@ -127,12 +127,6 @@ const AppContext = createContext<AppContextValue | null>(null);
 const backend = createBackend();
 const stub = new StubProvider();
 
-const BLANK_REFLECTION = (): Reflection => ({
-  date: todayISO(),
-  answers: ['', '', '', '', ''],
-  output: null,
-});
-
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<PersistedState>(() => seedState());
   const [hydrated, setHydrated] = useState(false);
@@ -165,9 +159,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       // New day: one-off schedule blocks from previous days fall away.
       const schedule = loaded.schedule.filter((s) => !s.once || s.once === today);
-      setData({ ...loaded, habits, schedule });
-      if (schedule.length !== loaded.schedule.length) {
-        backend.save({ schedule }).catch(() => {});
+      // People whose data predates onboarding never see the wizard: they are
+      // already set up, and the fresh-start path must not endanger real data.
+      const settings =
+        !loaded.settings.onboarded && hadStoredLocalData()
+          ? { ...loaded.settings, onboarded: true }
+          : loaded.settings;
+      setData({ ...loaded, habits, schedule, settings });
+      if (schedule.length !== loaded.schedule.length || settings !== loaded.settings) {
+        backend.save({ schedule, settings }).catch(() => {});
       }
       applyTheme(loaded.settings.dark);
       if (loaded.goals.length && !loaded.goals.some((g) => g.id === 'g1')) {
@@ -184,6 +184,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  /* ---------- day rollover: the tray app can run for weeks ---------- */
+  const [todayKey, setTodayKey] = useState(todayISO());
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const today = todayISO();
+      if (today === todayKey) return;
+      setTodayKey(today);
+      const d = dataRef.current;
+      const habits = d.habits.map((h) =>
+        h.done && h.lastDone !== today ? { ...h, done: false } : h,
+      );
+      const schedule = d.schedule.filter((s) => !s.once || s.once === today);
+      setData((prev) => ({ ...prev, habits, schedule }));
+      backend.save({ habits, schedule }).catch(() => {});
+    }, 60_000);
+    return () => clearInterval(tick);
+  }, [todayKey]);
 
   /* ---------- plumbing ---------- */
   const persist = useCallback((patch: Partial<PersistedState>) => {
@@ -254,6 +272,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const busyRef = useRef(busy);
   busyRef.current = busy;
 
+  /** Bumped whenever the whole state is replaced (restore, fresh start);
+   *  in-flight background work from before the bump discards its result. */
+  const epochRef = useRef(0);
+
   /** Quiet preference learning: fire-and-forget after reflections and coach
    *  exchanges. Invisible by design: no busy state, failures never toast. */
   const learnRef = useRef(false);
@@ -262,6 +284,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const text = material.trim();
       if (!text || learnRef.current) return;
       learnRef.current = true;
+      const epoch = epochRef.current;
+      const baseline = JSON.stringify(dataRef.current.memory);
       void (async () => {
         try {
           const out = await provider().complete(prompts.learn(dataRef.current.memory, source, text));
@@ -269,7 +293,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             .filter((x): x is string => typeof x === 'string' && !!x.trim())
             .map((x) => x.trim().slice(0, 140))
             .slice(0, 12);
-          if (parsed.length) update({ memory: parsed });
+          // Drop the result if the user edited their list (or restored a
+          // backup) while the request was in flight: their edit wins.
+          if (
+            parsed.length &&
+            epochRef.current === epoch &&
+            JSON.stringify(dataRef.current.memory) === baseline
+          ) {
+            update({ memory: parsed });
+          }
         } catch {
           /* learning is best-effort; the primary action already succeeded */
         } finally {
@@ -317,8 +349,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const next: PersistedState = {
         ...seed,
         ...candidate,
-        settings: { ...seed.settings, ...candidate.settings },
+        // A restore is by definition an established user: never re-onboard.
+        settings: { ...seed.settings, ...candidate.settings, onboarded: true },
       };
+      next.chatSummarized = Math.max(0, Math.min(next.chatSummarized, next.chat.length));
+      epochRef.current += 1;
       setData(next);
       persist(next);
       applyTheme(next.settings.dark);
@@ -330,12 +365,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const reconnectFile = useCallback(async () => {
     const r = await reconnectDataFile();
     if (!r.granted) return false;
-    if (hadStoredLocalData()) {
-      // Browser data survived, so it is current: refresh the file from it.
-      pushDataFile(dataRef.current);
-    } else if (r.fileState) {
-      // Browser data was wiped: recover everything from the file.
+    // How much lived data a snapshot holds; guards against overwriting a
+    // rich file with a near-empty browser state after a partial wipe.
+    const richness = (s: Partial<PersistedState> | null | undefined) =>
+      !s
+        ? 0
+        : (s.history?.length ?? 0) +
+          (s.reflections?.length ?? 0) +
+          (s.vault?.length ?? 0) +
+          (s.chat?.length ?? 0) +
+          (s.finance?.length ?? 0);
+    const fileRich = richness(r.fileState);
+    const hereRich = richness(dataRef.current);
+    if (r.fileState && !hadStoredLocalData()) {
+      // Browser was wiped: recover everything from the file.
       importData(r.fileState);
+    } else if (r.fileState && fileRich > hereRich + 3) {
+      const loadFile = window.confirm(
+        'The data file holds more history than this browser. Load the file version and replace what is here?',
+      );
+      if (loadFile) importData(r.fileState);
+      else pushDataFile(dataRef.current);
+    } else {
+      // Browser data is current: refresh the file from it.
+      pushDataFile(dataRef.current);
     }
     syncFileState();
     return true;
@@ -602,7 +655,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         update({ settings: { ...cur.settings, onboarded: true } });
         return;
       }
-      const areas = answers.areas.map((a) => a.trim()).filter(Boolean);
+      const areas = [...new Set(answers.areas.map((a) => a.trim()).filter(Boolean))];
       const finalAreas = areas.length ? areas : cur.settings.areas;
       const goalArea = finalAreas.includes(answers.goalArea) ? answers.goalArea : finalAreas[0];
       const goals: Goal[] = answers.goalTitle.trim()
@@ -637,6 +690,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           weeklyDay: new Date().getDay(),
         },
       };
+      epochRef.current += 1;
       setData(next);
       persist(next);
       if (goals.length) setSelGoal(goals[0].id);
@@ -838,12 +892,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       aiAction('replan', async () => {
         const d = dataRef.current;
         const n = d.settings.topCount;
-        const out = await provider().complete(prompts.replanTop(context(), n, scheduleSummary(d)));
+        const out = await provider().complete(
+          prompts.replanTop(context(), n, scheduleSummary(d), d.settings.areas),
+        );
         const parsed = clean(parseJSON<{ text: string; area?: string }[]>(out));
+        const fallbackArea = d.settings.areas[0] ?? 'General';
         const topTasks: TopTask[] = parsed.slice(0, n).map((i) => ({
           id: uid(),
           text: i.text,
-          area: (i.area as TopTask['area']) || 'School',
+          area: i.area && d.settings.areas.includes(i.area) ? i.area : fallbackArea,
           done: false,
         }));
         if (!topTasks.length) throw new Error('empty replan');
@@ -906,7 +963,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           snippet: answers.filter(Boolean).join(' · ').slice(0, 140) || out.slice(0, 140),
           createdAt: Date.now(),
         };
-        updateWithHistory({ reflections, vault: [journal, ...d.vault] });
+        // Re-submitting the same day replaces that day's journal note.
+        const vault = [journal, ...d.vault.filter((v) => v.title !== journal.title)];
+        updateWithHistory({ reflections, vault });
         learnQuietly('tonight’s reflection', answers.filter(Boolean).join('\n'));
       }),
     [aiAction, provider, context, updateWithHistory, learnQuietly],
@@ -965,13 +1024,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const covered = Math.max(0, Math.min(d.chatSummarized, chatNow.length));
       if (chatNow.length - covered < TRIGGER || summarizeRef.current) return;
       summarizeRef.current = true;
+      const epoch = epochRef.current;
       const upTo = chatNow.length - KEEP;
       const turns = chatNow.slice(covered, upTo).map((m) => ({ role: m.role, content: m.content }));
       void (async () => {
         try {
           const out = clean(await provider().complete(prompts.summarizeChat(d.chatSummary, turns)));
-          if (out.trim()) {
-            update({ chatSummary: out.trim().slice(0, 2400), chatSummarized: upTo });
+          // A restore or fresh start mid-flight invalidates the pointer math.
+          if (out.trim() && epochRef.current === epoch) {
+            update({
+              chatSummary: out.trim().slice(0, 2400),
+              chatSummarized: Math.min(upTo, dataRef.current.chat.length),
+            });
           }
         } catch {
           /* next long chat will try again */
@@ -1011,8 +1075,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /* ---------- derived ---------- */
   const todayReflection = useMemo(() => {
-    return data.reflections.find((r) => r.date === todayISO()) ?? BLANK_REFLECTION();
-  }, [data.reflections]);
+    return (
+      data.reflections.find((r) => r.date === todayKey) ?? {
+        date: todayKey,
+        answers: ['', '', '', '', ''] as Reflection['answers'],
+        output: null,
+      }
+    );
+  }, [data.reflections, todayKey]);
 
   const value: AppContextValue = {
     ...data,

@@ -144,10 +144,20 @@ function createTray() {
 
 app.whenReady().then(() => {
   db = openDatabase(app.getPath('userData'));
-  const stored = db.load() as { settings?: { runInBackground?: boolean } } | null;
-  runInBackground = stored?.settings?.runInBackground !== false;
+  try {
+    const stored = db.load() as { settings?: { runInBackground?: boolean } } | null;
+    runInBackground = stored?.settings?.runInBackground !== false;
+  } catch {
+    /* unreadable data must not stop the window from opening */
+  }
 
-  ipcMain.handle('lifeos:load', () => db.load());
+  ipcMain.handle('lifeos:load', () => {
+    try {
+      return db.load();
+    } catch {
+      return null; // renderer falls back to seed rather than hanging forever
+    }
+  });
   ipcMain.handle('lifeos:save', (_event, patch: Record<string, unknown>) => {
     db.save(patch);
     const settings = patch.settings as { runInBackground?: boolean } | undefined;

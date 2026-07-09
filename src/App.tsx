@@ -180,7 +180,7 @@ function Main() {
             top: 14,
             left: '50%',
             transform: 'translateX(-50%)',
-            zIndex: 95,
+            zIndex: 300, /* above onboarding: recovery beats setup questions */
             display: 'flex',
             gap: 14,
             alignItems: 'center',

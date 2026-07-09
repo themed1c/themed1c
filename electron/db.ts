@@ -93,6 +93,13 @@ export function openDatabase(userDataDir: string): DBHandle {
     );
   `);
 
+  // Older databases predate the schedule.once column (one-off blocks).
+  try {
+    db.exec('ALTER TABLE schedule ADD COLUMN once TEXT');
+  } catch {
+    /* column already exists */
+  }
+
   const hasData = () => {
     const row = db.prepare('SELECT COUNT(*) AS n FROM kv').get() as { n: number };
     return row.n > 0;
@@ -102,7 +109,12 @@ export function openDatabase(userDataDir: string): DBHandle {
     const row = db.prepare('SELECT value_json FROM kv WHERE key = ?').get(key) as
       | { value_json: string }
       | undefined;
-    return row ? (JSON.parse(row.value_json) as T) : undefined;
+    if (!row) return undefined;
+    try {
+      return JSON.parse(row.value_json) as T;
+    } catch {
+      return undefined; // one corrupt value must not make the app unlaunchable
+    }
   };
 
   const setKV = (key: string, value: unknown) => {
@@ -158,6 +170,7 @@ export function openDatabase(userDataDir: string): DBHandle {
       })),
       schedule: (db.prepare('SELECT * FROM schedule ORDER BY position').all() as Row[]).map((r) => ({
         id: r.id, time: r.time, label: r.label, tag: r.tag,
+        ...(r.once ? { once: r.once } : {}),
       })),
       habits: (db.prepare('SELECT * FROM habits ORDER BY position').all() as Row[]).map((r) => ({
         id: r.id, name: r.name, streak: r.streak, done: !!r.done, lastDone: r.last_done,
@@ -235,8 +248,8 @@ export function openDatabase(userDataDir: string): DBHandle {
       if (patch.schedule) {
         replaceAll(
           'schedule',
-          ['id', 'time', 'label', 'tag', 'position'],
-          (patch.schedule as Row[]).map((s, i) => [s.id, s.time, s.label, s.tag, i]),
+          ['id', 'time', 'label', 'tag', 'once', 'position'],
+          (patch.schedule as Row[]).map((s, i) => [s.id, s.time, s.label, s.tag, (s.once as string) ?? null, i]),
         );
       }
       if (patch.habits) {
@@ -303,12 +316,17 @@ export function openDatabase(userDataDir: string): DBHandle {
         ).run(mondayISO(), JSON.stringify(patch.weekly));
       }
       if (patch.reflections) {
-        const stmt = db.prepare(
-          'INSERT INTO reflections (date, answers_json, output) VALUES (?, ?, ?) ON CONFLICT(date) DO UPDATE SET answers_json = excluded.answers_json, output = excluded.output',
+        // Full replace, not upsert: fresh starts and restores must not have
+        // old reflections resurrect on the next launch.
+        replaceAll(
+          'reflections',
+          ['date', 'answers_json', 'output'],
+          (patch.reflections as Row[]).map((r) => [
+            r.date,
+            JSON.stringify(r.answers),
+            (r.output as string) ?? null,
+          ]),
         );
-        for (const r of patch.reflections as Row[]) {
-          stmt.run(r.date as string, JSON.stringify(r.answers), (r.output as string) ?? null);
-        }
       }
       if (patch.morning) setKV('morning', patch.morning);
       if (patch.eveningText !== undefined) setKV('eveningText', patch.eveningText);

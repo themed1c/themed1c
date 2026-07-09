@@ -2,15 +2,34 @@
 
 Context document for any developer or AI session picking up this project. Read this first, then `design/README.md` (the original design spec; canonical for visuals, superseded in places by the personalization work described below).
 
-## ⚠️ NEXT SESSION (planned for Friday) — what still must be done
+## ⚠️ DEBUGGING HANDOFF — exact state of the debug sweep and what remains
 
-1. **Run the debug sweep.** Two large feature waves shipped since the last full review: (a) personalization/editing + daily history ledger + coach summarization, and (b) onboarding/tutorial/fresh-start, professional-blunt tone overhaul (coach tones deleted), Finances module, editable life areas and goal areas, schedule daily/once + drag reorder, weekly-review day gate, Electron tray/background mode, compact/responsive window, and the GitHub Actions installer pipeline. All pass the 39 automated checks, but the multi-agent adversarial review was never run over them. The workflow script is saved at `scripts/debug-sweep.workflow.js` (5 review dimensions, 3 adversarial verifiers per finding); update its "recent changes" preamble to mention wave (b), run it, fix CONFIRMED findings, re-run `node scripts/verify.js` (keep all 39 green).
-2. **Verify the installer pipeline ran.** Pushing to the branch triggers `.github/workflows/build-installers.yml` (Windows/macOS/Linux, unsigned, artifacts on the run). Check the Actions run succeeded; if electron-builder fails on a runner, fix the config. The Windows .exe artifact is the user's installer; walk them through downloading it (they are non-technical).
-3. **Deliver the final build**: portable HTML plus the installer link, with plain-language notes.
+**The sweep is half done.** `scripts/debug-sweep.workflow.js` (5 review dimensions, then 3 adversarial verifiers per finding, run via the Workflow tool) was launched over the full codebase; the session ended after only the **persistence** and **state-react** reviewers finished. Their 20 findings were manually adjudicated and **the real ones are FIXED and verified** (see "Fixed from the sweep" below). Three dimensions **never ran** and are the next session's first job:
+
+1. **product-rules** (em dashes, 12-hour times, Oswald numerals, CSS-vars/dark mode, busy labels, stub coverage, no "AI" labels, blunt tone consistency)
+2. **engine-contracts** (buildContext with legacy/edge data, provider request/response handling, parseJSON per contract, financeContext math, stub branch triggers)
+3. **ui-edges** (zero-data states everywhere, absurd inputs, drag-drop edges, compact-window layout, overflow)
+
+Run the sweep again as-is (its dimension prompts already cover both feature waves); the two finished dimensions will mostly re-find fixed items, which the verifiers should now refute. Fix anything newly CONFIRMED, then `node scripts/verify.js` and keep **all 40 checks green**.
+
+**Fixed from the sweep (commit "Debug sweep round 1"):**
+- Upgrade/wipe safety: pre-onboarding data auto-marks `onboarded` at load (no wizard over real data); backup restore forces `onboarded: true`; the data-file Reconnect banner renders above the onboarding overlay.
+- Live-file recovery now writes the recovered state back into localStorage (a following save no longer truncates both stores); saves fall back to an in-memory full-state cache when localStorage is unreadable; `reconnectFile` compares data richness and asks before overwriting a richer file.
+- Day rollover: a minute-interval tick resets habit flags, expires one-off schedule blocks, and rolls `todayReflection` at midnight (the tray app can run for weeks without a relaunch).
+- Electron: reflections table is now replace-not-upsert (fresh starts/restores no longer resurrect old reflections on relaunch); `schedule.once` column migration; corrupt kv values or an unreadable database no longer prevent launch.
+- Background-task races: an epoch counter discards in-flight learn/summarize results after a restore or fresh start; `learnQuietly` also drops its result if the user edited the memory list mid-flight; `chatSummarized` clamped to chat length on restore and summarize-completion.
+- `withDefaults` strips undefined values (an Electron DB with no weekly row could crash Weekly Review).
+- Onboarding dedupes life areas; replan prompt uses the user's real `settings.areas` (was hardcoded) and validates returned areas; re-submitting a reflection replaces that day's Vault journal instead of duplicating; Coach keeps the draft instead of silently discarding input while a reply is in flight; Escape cancels the Goal Center cascade editor.
+
+**Accepted minor behaviors (do not re-fix without a better design):** double-clicking a habit name to rename fires two state-neutral toggles first; clicking elsewhere in the habit row while the rename editor is open commits the rename and toggles the habit once.
+
+**Also for next session:**
+- Verify the latest "Build installers" Actions run is green and walk the user through downloading `installer-windows-latest` (they are non-technical).
+- The user is now testing with a live API key; collect their feedback first, fix before building anything new.
 
 **Explicitly declined by the user (do not build):** day-start/day-end nudges (auto-morning-strategist, evening reflection reminders).
 
-**Proposed but not built (user asked for suggestions):** self-improvement agents once an API key is connected. Proposal given to the user: a nightly "auditor" pass (data hygiene: dedupe vault, flag stale goals), a weekly "prompt tuner" (adjusts stored prompt phrasing based on which outputs the user edits or ignores), and a monthly "feature scout" (reads the history ledger and drafts a prioritized improvement list a future Claude session implements). True self-modifying code was ruled out as unsafe; the realistic loop is: app collects evidence, agents draft changes, a Claude session applies them.
+**Proposed but not built (user asked for suggestions):** self-improvement agents once an API key is connected: a nightly "auditor" (data hygiene), a weekly "prompt tuner" (adjusts stored prompt phrasing from which outputs the user edits/ignores), a monthly "feature scout" (reads the history ledger, drafts a prioritized improvement list a future Claude session implements). Self-modifying code ruled out; the loop is: app collects evidence, agents draft, a Claude session applies.
 
 **Backlog:** phone-friendly layout, smarter area-score model, embeddings for Vault search, OS calendar integration.
 
