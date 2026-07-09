@@ -14,6 +14,8 @@ import WeeklyReview from './modules/WeeklyReview';
 import Vault from './modules/Vault';
 import Patterns from './modules/Patterns';
 import SettingsModule from './modules/Settings';
+import Finances from './modules/Finances';
+import Onboarding from './modules/Onboarding';
 
 const NAV_GROUPS: { label: string; items: { key: ModuleKey; label: string }[] }[] = [
   { label: 'Overview', items: [{ key: 'dashboard', label: 'Life Dashboard' }] },
@@ -30,6 +32,7 @@ const NAV_GROUPS: { label: string; items: { key: ModuleKey; label: string }[] }[
       { key: 'goals', label: 'Goal Center' },
       { key: 'roadmaps', label: 'Roadmaps' },
       { key: 'strategist', label: 'Strategist' },
+      { key: 'finance', label: 'Finances' },
     ],
   },
   {
@@ -51,6 +54,7 @@ const MODULES: Record<ModuleKey, React.ComponentType> = {
   goals: GoalCenter,
   roadmaps: Roadmaps,
   strategist: Strategist,
+  finance: Finances,
   coach: Coach,
   reflect: Reflection,
   weekly: WeeklyReview,
@@ -63,9 +67,8 @@ function Sidebar() {
   const dark = app.settings.dark;
   return (
     <nav
+      className="sidebar"
       style={{
-        width: 228,
-        flexShrink: 0,
         borderRight: '1px solid var(--line)',
         display: 'flex',
         flexDirection: 'column',
@@ -164,11 +167,12 @@ function Main() {
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
       <Sidebar />
-      <main style={{ flex: 1, overflowY: 'auto', padding: '36px 44px 80px' }}>
+      <main className="main-pad">
         <div style={{ maxWidth: 1060, margin: '0 auto', height: '100%' }}>
           {app.hydrated ? <Module key={app.module} /> : null}
         </div>
       </main>
+      {app.hydrated && !app.settings.onboarded && <Onboarding />}
       {app.hydrated && app.dataFileStatus === 'reconnect' && (
         <div
           style={{

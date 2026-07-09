@@ -1,8 +1,16 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, Tray } from 'electron';
 import path from 'node:path';
 import { openDatabase, type DBHandle } from './db';
 
 let db: DBHandle;
+let win: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let quitting = false;
+/** Mirrors settings.runInBackground; updated on every save from the renderer. */
+let runInBackground = true;
+
+const TRAY_ICON =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAH0lEQVR4nGNgoBbYUK/zn1RMkeZRA0YNGDUAiwGUAABRfcqe2bkWdQAAAABJRU5ErkJggg==';
 
 interface AIPayload {
   provider?: 'anthropic' | 'openai';
@@ -72,11 +80,11 @@ async function openaiComplete(payload: AIPayload): Promise<string> {
 }
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1080,
-    minHeight: 640,
+  win = new BrowserWindow({
+    width: 1000,
+    height: 700,
+    minWidth: 680,
+    minHeight: 540,
     title: 'Life Organization',
     backgroundColor: '#FDFCF9',
     webPreferences: {
@@ -87,6 +95,17 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
 
+  // Background mode: closing the window hides to the tray instead of quitting.
+  win.on('close', (e) => {
+    if (runInBackground && !quitting) {
+      e.preventDefault();
+      win?.hide();
+    }
+  });
+  win.on('closed', () => {
+    win = null;
+  });
+
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
     win.loadURL(devUrl);
@@ -95,22 +114,63 @@ function createWindow() {
   }
 }
 
+function showWindow() {
+  if (win) {
+    win.show();
+    win.focus();
+  } else {
+    createWindow();
+  }
+}
+
+function createTray() {
+  tray = new Tray(nativeImage.createFromDataURL(TRAY_ICON));
+  tray.setToolTip('Life Organization');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Open', click: showWindow },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          quitting = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+  tray.on('click', showWindow);
+}
+
 app.whenReady().then(() => {
   db = openDatabase(app.getPath('userData'));
+  const stored = db.load() as { settings?: { runInBackground?: boolean } } | null;
+  runInBackground = stored?.settings?.runInBackground !== false;
 
   ipcMain.handle('lifeos:load', () => db.load());
   ipcMain.handle('lifeos:save', (_event, patch: Record<string, unknown>) => {
     db.save(patch);
+    const settings = patch.settings as { runInBackground?: boolean } | undefined;
+    if (settings && typeof settings.runInBackground === 'boolean') {
+      runInBackground = settings.runInBackground;
+    }
   });
   ipcMain.handle('lifeos:ai', (_event, payload: AIPayload) => aiComplete(payload));
 
+  createTray();
   createWindow();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    showWindow();
   });
 });
 
+app.on('before-quit', () => {
+  quitting = true;
+});
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // With background mode on, the hidden window never fully closes; if it does
+  // (background off), quit like a normal app outside macOS.
+  if (!runInBackground && process.platform !== 'darwin') app.quit();
 });

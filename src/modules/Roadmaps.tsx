@@ -102,7 +102,7 @@ export default function Roadmaps() {
       <PageSub>
         Where every project stands, and what's in its way. Click any detail to change it.
       </PageSub>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid-2">
         {app.projects.map((p) => (
           <Card key={p.id}>
             <div

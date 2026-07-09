@@ -1,7 +1,8 @@
-export type Area = 'Music' | 'School' | 'Work' | 'Fitness';
+/** Goal/task areas are user-defined labels; the list lives in settings.areas. */
+export type Area = string;
 
-/** Cycle order for area pickers. */
-export const AREAS: Area[] = ['Music', 'School', 'Work', 'Fitness'];
+/** Default areas for the sample data and for anyone who never customizes. */
+export const DEFAULT_AREAS: Area[] = ['Music', 'School', 'Work', 'Fitness'];
 
 export type DumpType =
   | 'Task'
@@ -48,6 +49,9 @@ export interface ScheduleItem {
   time: string; // 12-hour, e.g. "9:00 AM"
   label: string;
   tag: string;
+  /** When set (yyyy-mm-dd), the block applies to that day only and is removed
+   *  on the next day's first load. Unset means it repeats daily. */
+  once?: string;
 }
 
 export interface Habit {
@@ -115,6 +119,18 @@ export interface MorningAction {
   why: string;
 }
 
+export type FinanceKind = 'income' | 'expense' | 'saving';
+
+/** One money movement, entered by hand. Amounts are positive numbers; the
+ *  kind carries the direction. */
+export interface FinanceEntry {
+  id: string;
+  date: string; // yyyy-mm-dd, local
+  label: string;
+  amount: number;
+  kind: FinanceKind;
+}
+
 /** One day of lived activity: what actually got done. The ledger the engine
  *  mines so months of use make it genuinely smarter about the person. */
 export interface HistoryDay {
@@ -128,12 +144,10 @@ export interface HistoryDay {
   reflected: boolean;
 }
 
-export type CoachTone = 'direct' | 'supportive' | 'analytical';
 export type ProviderKind = 'stub' | 'anthropic' | 'openai';
 
 export interface Settings {
   dark: boolean;
-  coachTone: CoachTone;
   topCount: number; // 1-5
   provider: ProviderKind;
   apiKey: string;
@@ -143,6 +157,14 @@ export interface Settings {
   /** The user's own description of who they are and what their life looks
    *  like; prefixed to every engine call in place of any canned persona. */
   aboutMe: string;
+  /** First-run setup finished (questions answered or sample data kept). */
+  onboarded: boolean;
+  /** Day of week (0 = Sunday) the weekly review unlocks. */
+  weeklyDay: number;
+  /** Installed desktop app: keep running in the tray when the window closes. */
+  runInBackground: boolean;
+  /** User-defined goal/task areas, in cycle order. */
+  areas: Area[];
 }
 
 /** Everything the app persists, as one object. The Electron backend maps
@@ -168,6 +190,10 @@ export interface PersistedState {
   memory: string[];
   /** Daily ledger, ascending by date, one entry per day used. */
   history: HistoryDay[];
+  /** Money movements, newest first. */
+  finance: FinanceEntry[];
+  /** Latest engine read on the money picture. */
+  financeRead: string;
   /** Running condensation of coach messages older than the live window. */
   chatSummary: string;
   /** How many messages at the start of `chat` the summary already covers. */

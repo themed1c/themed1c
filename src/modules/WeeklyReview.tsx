@@ -1,9 +1,11 @@
 import { useApp } from '../lib/store';
 import { Card, CardLabel, GhostButton, PageSub, PageTitle } from '../components/ui';
-import { weekRange } from '../lib/time';
+import { dayName, weekRange } from '../lib/time';
 
 export default function WeeklyReview() {
   const app = useApp();
+  const today = new Date().getDay();
+  const openToday = today === app.settings.weeklyDay;
 
   const sections: { h: string; items: string[]; hColor: string }[] = [
     { h: 'Biggest wins', items: app.weekly.wins, hColor: 'var(--good)' },
@@ -28,11 +30,21 @@ export default function WeeklyReview() {
           <PageTitle>Weekly Review</PageTitle>
           <PageSub style={{ marginBottom: 0 }}>{weekRange()}</PageSub>
         </div>
-        <GhostButton onClick={app.genWeekly} disabled={app.busy.weekly}>
-          {app.busy.weekly ? 'Compiling…' : 'Rebuild from this week’s data'}
-        </GhostButton>
+        {openToday && (
+          <GhostButton onClick={app.genWeekly} disabled={app.busy.weekly}>
+            {app.busy.weekly ? 'Compiling…' : 'Rebuild from this week’s data'}
+          </GhostButton>
+        )}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      {!openToday && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6 }}>
+            The review compiles on {dayName(app.settings.weeklyDay)}. Below is the last one.
+            Change the day in Settings.
+          </div>
+        </Card>
+      )}
+      <div className="grid-2">
         {sections.map((w) => (
           <Card key={w.h}>
             <CardLabel size={11} color={w.hColor} style={{ marginBottom: 12 }}>

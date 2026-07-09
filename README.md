@@ -15,7 +15,11 @@ npm install     # one time, downloads dependencies
 npm start       # builds and opens the desktop app
 ```
 
-That's it. The app opens on the Life Dashboard with sample data and works fully offline: every feature (brain-dump sorting, replanning, the coach, reflections, weekly review, patterns) runs against a built-in offline engine until you connect a real one.
+That's it. On first run the app asks a few setup questions (or keeps the sample data if you just want to look around) and shows a brief tutorial. Every feature (brain-dump sorting, replanning, the coach, reflections, weekly review, patterns, the finance read) runs against a built-in offline engine until you connect a real one.
+
+### Installers
+
+`.github/workflows/build-installers.yml` builds unsigned installers for Windows (.exe), macOS (.dmg), and Linux (.AppImage) on every push via GitHub Actions; download them from the workflow run's Artifacts. The installed app can keep running in the system tray when closed (Settings → "Keep running in the background").
 
 ### Connecting the real engine (optional)
 
@@ -51,6 +55,7 @@ In browser mode (the portable single-file build or `npm run dev`), data lives in
 | **Goal Center** | Each goal cascades Vision → 1-Year → Quarterly → Monthly → This week → Today; the roadmap regenerates from current progress, and every line is editable in place |
 | **Roadmaps** | Project cards with milestone maps, dependencies, and risks |
 | **Strategist** | Morning highest-impact actions and the evening debrief |
+| **Finances** | Hand-logged income, spending, and savings, with an engine read: position, biggest lever, and investment directions to research |
 | **Coach** | A chat that knows everything you've written; persistent across sessions |
 | **Reflection** | Five honest questions each evening; the engine reads them back to you |
 | **Weekly Review** | Wins, failures, habits, time, progress, and recommended changes |

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useApp } from '../lib/store';
 import {
   AddRow, Card, CardLabel, CheckSquare, Chip, GhostButton, InlineText, Num, Track,
@@ -9,6 +10,8 @@ import { PASTELS } from '../lib/seed';
 
 export default function Dashboard() {
   const app = useApp();
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   const areas = computeAreaScores(app);
   const score = focusScore(app);
@@ -65,8 +68,18 @@ export default function Dashboard() {
 
       {/* Life areas */}
       <Card style={{ marginBottom: 16 }}>
-        <CardLabel style={{ marginBottom: 18 }}>Life areas, last 30 days</CardLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 28px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 18,
+          }}
+        >
+          <CardLabel>Life areas, last 30 days</CardLabel>
+          <AddRow label="+ Add an area" placeholder="Area name. Enter to add." onAdd={app.addLifeArea} />
+        </div>
+        <div className="areas-grid">
           {areas.map((a, i) => {
             const pastel = PASTELS[i % 10];
             return (
@@ -82,9 +95,11 @@ export default function Dashboard() {
                     gap: 10,
                   }}
                 >
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-                    {a.name}
-                  </span>
+                  <InlineText
+                    value={a.name}
+                    onCommit={(name) => name && app.renameLifeArea(i, name)}
+                    style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}
+                  />
                   <span
                     style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0 }}
                   >
@@ -103,6 +118,14 @@ export default function Dashboard() {
                     >
                       {a.trend > 0 ? `+${a.trend}` : String(a.trend)}
                     </Num>
+                    <button
+                      className="row-x"
+                      title="Remove area"
+                      onClick={() => app.deleteLifeArea(i)}
+                      style={{ fontSize: 12, padding: '0 3px' }}
+                    >
+                      ×
+                    </button>
                   </span>
                 </div>
                 <Track
@@ -120,7 +143,7 @@ export default function Dashboard() {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {a.note}
+                  <InlineText value={a.note} onCommit={(note) => app.updateLifeAreaNote(i, note)} />
                 </div>
               </div>
             );
@@ -128,14 +151,7 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1.7fr 1fr',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
+      <div className="dash-grid">
         {/* Left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card>
@@ -219,17 +235,48 @@ export default function Dashboard() {
               </GhostButton>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {app.schedule.map((s) => (
+              {app.schedule.map((s, i) => (
                 <div
                   key={s.id}
+                  className={dragOver === i && dragFrom !== null && dragFrom !== i ? 'drag-over' : undefined}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(i);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragFrom !== null) app.reorderSchedule(dragFrom, i);
+                    setDragFrom(null);
+                    setDragOver(null);
+                  }}
                   style={{
                     display: 'flex',
-                    gap: 16,
+                    gap: 12,
                     alignItems: 'center',
                     padding: '10px 2px',
                     borderBottom: '1px solid var(--line)',
+                    borderTop: '2px solid transparent',
                   }}
                 >
+                  <span
+                    draggable
+                    onDragStart={() => setDragFrom(i)}
+                    onDragEnd={() => {
+                      setDragFrom(null);
+                      setDragOver(null);
+                    }}
+                    title="Drag to reorder"
+                    style={{
+                      cursor: 'grab',
+                      color: 'var(--faint)',
+                      fontSize: 11,
+                      flexShrink: 0,
+                      userSelect: 'none',
+                      letterSpacing: '-1px',
+                    }}
+                  >
+                    ⋮⋮
+                  </span>
                   <InlineText
                     value={s.time}
                     onCommit={(time) => time && app.updateScheduleItem(s.id, { time })}
@@ -261,6 +308,25 @@ export default function Dashboard() {
                       textAlign: 'right',
                     }}
                   />
+                  <button
+                    onClick={() => app.toggleScheduleRepeat(s.id)}
+                    title={s.once ? 'Today only. Click to repeat daily.' : 'Repeats daily. Click for today only.'}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--border)',
+                      borderRadius: 20,
+                      padding: '1px 8px',
+                      fontSize: 9.5,
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: s.once ? 'var(--accent)' : 'var(--faint)',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {s.once ? 'Today' : 'Daily'}
+                  </button>
                   <button
                     className="row-x"
                     title="Remove block"

@@ -15,6 +15,7 @@ const NAV = [
   ['Goal Center', 'goals'],
   ['Roadmaps', 'roadmaps'],
   ['Strategist', 'strategist'],
+  ['Finances', 'finance'],
   ['Coach', 'coach'],
   ['Reflection', 'reflect'],
   ['Weekly Review', 'weekly'],
@@ -44,6 +45,15 @@ const ok = (name, pass, detail = '') => {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(600);
+
+  /* ---- first-run onboarding: keep-the-sample-data path ---- */
+  const sawOnboarding = /Keep the sample data/.test(await page.locator('body').innerText());
+  ok('onboarding shows on first run', sawOnboarding);
+  await page.click('button:has-text("Keep the sample data")');
+  await page.waitForTimeout(200);
+  ok('tutorial step shows', /How it works/i.test(await page.locator('body').innerText()));
+  await page.click('button:has-text("Finish")');
+  await page.waitForTimeout(400);
 
   const nav = (label) => page.click(`button.nav-item:has-text("${label}")`);
   const shot = async (name) => {
@@ -194,6 +204,24 @@ const ok = (name, pass, detail = '') => {
   await page.waitForTimeout(300);
   ok('project added', /New project/.test(await page.locator('main').innerText()));
 
+  /* ---- finances: ledger + engine read ---- */
+  await nav('Finances');
+  await page.fill('input[placeholder="What was it"]', 'Paycheck');
+  await page.fill('input[placeholder="Amount"]', '2500');
+  await page.click('button:has-text("Add")');
+  await page.waitForTimeout(300);
+  ok('finance entry added', /Paycheck/.test(await page.locator('main').innerText()));
+  await page.click('button:has-text("Review finances")');
+  await page.waitForTimeout(1800);
+  ok(
+    'finance review produced',
+    /not financial advice/i.test(await page.locator('main').innerText()),
+  );
+
+  /* ---- schedule blocks show the daily/today repeat control ---- */
+  await nav('Life Dashboard');
+  ok('schedule repeat control present', /DAILY/.test(await page.locator('main').innerText()));
+
   /* ---- daily history ledger recorded ---- */
   const hist = await page.evaluate(() => {
     const raw = localStorage.getItem('life-org-v2');
@@ -210,23 +238,28 @@ const ok = (name, pass, detail = '') => {
   await nav('Settings');
   await page.fill('textarea', 'I run a small bakery and train for triathlons.');
   await page.press('textarea', 'Tab');
-  await page.waitForTimeout(200);
-  await page.click('button:has-text("Supportive")');
   await page.waitForTimeout(300);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
   await nav('Settings');
-  const supportiveSelected = await page.evaluate(() => {
-    const btns = [...document.querySelectorAll('button')];
-    const b = btns.find((x) => x.textContent?.trim() === 'Supportive');
-    if (!b) return 'missing';
-    const st = getComputedStyle(b);
-    return st.borderColor;
-  });
-  ok('settings tone persisted across reload', supportiveSelected !== 'missing', `border: ${supportiveSelected}`);
 
   const aboutVal = await page.inputValue('textarea');
   ok('about you persisted across reload', /bakery/.test(aboutVal));
+
+  /* ---- weekly review day gate ---- */
+  const dayShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const todayIdx = new Date().getDay();
+  const otherIdx = (todayIdx + 3) % 7;
+  await page.click(`button:has-text("${dayShort[otherIdx]}")`);
+  await page.waitForTimeout(200);
+  await nav('Weekly Review');
+  ok('weekly review gated to chosen day', /compiles on/i.test(await page.locator('main').innerText()));
+  await nav('Settings');
+  await page.click(`button:has-text("${dayShort[todayIdx]}")`);
+  await page.waitForTimeout(200);
+  await nav('Weekly Review');
+  ok('weekly review open on its day', /Rebuild/.test(await page.locator('main').innerText()));
+  await nav('Settings');
 
   /* ---- engine options include OpenAI ---- */
   const settingsText = await page.locator('main').innerText();
@@ -316,6 +349,32 @@ const ok = (name, pass, detail = '') => {
     summarized.n > 0 && summarized.len > 40,
     `covers ${summarized.n} messages, summary ${summarized.len} chars`,
   );
+
+  /* ---- fresh onboarding path: questions in, sample data out ---- */
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  await page.click('button:has-text("Set up for me")');
+  await page.fill('textarea', 'I manage a bakery and train for triathlons.');
+  await page.click('button:has-text("Next")');
+  await page.waitForTimeout(150);
+  await page.click('button:has-text("Next")'); // default areas
+  await page.waitForTimeout(150);
+  await page.fill('input[placeholder="The goal, in one line"]', 'Read 12 books this year');
+  await page.fill('input[placeholder*="Train, read"]', 'Stretch, read 20 pages');
+  await page.click('button:has-text("Next")');
+  await page.waitForTimeout(150);
+  await page.click('button:has-text("Finish")');
+  await page.waitForTimeout(500);
+  const freshDash = await page.locator('main').innerText();
+  ok(
+    'fresh start removes sample data',
+    !/problem set|Maya|record store/i.test(freshDash) && /Add a task/.test(freshDash),
+  );
+  await nav('Goal Center');
+  ok('fresh start created the stated goal', /Read 12 books this year/.test(await page.locator('main').innerText()));
+  await nav('Settings');
+  ok('fresh start stored about you', /bakery/.test(await page.inputValue('textarea')));
 
   /* ---- no em dashes anywhere in UI text ---- */
   let empty = 0;

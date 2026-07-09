@@ -34,13 +34,13 @@ export default function BrainDump() {
   return (
     <section className="fade-up">
       <PageTitle>Brain Dump</PageTitle>
-      <PageSub>Write anything. It sorts itself.</PageSub>
+      <PageSub>Write anything. It is split, classified, and filed automatically.</PageSub>
 
       <Card style={{ padding: 8 }}>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ideas, worries, plans, things to remember, half-formed thoughts…"
+          placeholder="Tasks, deadlines, decisions, ideas. One or many; formatting does not matter."
           style={{
             width: '100%',
             minHeight: 150,
@@ -65,7 +65,7 @@ export default function BrainDump() {
           <span style={{ fontSize: 12.5, color: 'var(--faint)' }}>
             {busy
               ? 'Reading, splitting, filing…'
-              : 'Tasks, people, deadlines, ideas, all filed automatically.'}
+              : 'Each item is typed, indexed in the Vault, and folded into planning.'}
           </span>
           <AccentButton onClick={capture}>{busy ? 'Sorting…' : 'Capture'}</AccentButton>
         </div>
@@ -91,13 +91,14 @@ export default function BrainDump() {
                 fontFamily: FONT_BODY,
                 fontWeight: 600,
                 fontSize: 10,
-                letterSpacing: '0.06em',
+                letterSpacing: '0.05em',
                 textTransform: 'uppercase',
                 color: TAG_COLORS[item.type] || 'var(--tag-note)',
                 border: '1px solid var(--chip)',
-                padding: '3px 9px',
+                padding: '3px 10px',
                 borderRadius: 20,
-                width: 88,
+                minWidth: 74,
+                whiteSpace: 'nowrap',
                 textAlign: 'center',
                 flexShrink: 0,
               }}

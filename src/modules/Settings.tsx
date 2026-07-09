@@ -1,9 +1,9 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { useApp } from '../lib/store';
-import { Card, CardLabel, GhostButton, PageTitle, PageSub } from '../components/ui';
+import { AddRow, Card, CardLabel, GhostButton, InlineText, PageTitle, PageSub } from '../components/ui';
 import { FONT_BODY, FONT_NUM } from '../lib/theme';
-import { todayISO } from '../lib/time';
-import type { CoachTone, ProviderKind } from '../lib/types';
+import { dayName, todayISO } from '../lib/time';
+import type { ProviderKind } from '../lib/types';
 
 const caption: CSSProperties = {
   fontSize: 12.5,
@@ -18,11 +18,7 @@ const PROVIDERS: { key: ProviderKind; name: string; sub: string }[] = [
   { key: 'openai', name: 'OpenAI API', sub: 'Live engine from ChatGPT’s maker, needs an API key.' },
 ];
 
-const TONES: { key: CoachTone; label: string }[] = [
-  { key: 'direct', label: 'Direct' },
-  { key: 'supportive', label: 'Supportive' },
-  { key: 'analytical', label: 'Analytical' },
-];
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
 export default function Settings() {
   const app = useApp();
@@ -343,34 +339,116 @@ export default function Settings() {
           </div>
         </Card>
 
-        {/* -------- Coach tone -------- */}
+        {/* -------- Life areas -------- */}
         <Card>
-          <CardLabel style={{ marginBottom: 14 }}>Coach tone</CardLabel>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {TONES.map((t) => {
-              const sel = s.coachTone === t.key;
+          <CardLabel style={{ marginBottom: 14 }}>Goal and task areas</CardLabel>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {s.areas.map((a) => (
+              <span
+                key={a}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  border: '1px solid var(--border)',
+                  borderRadius: 20,
+                  padding: '5px 6px 5px 13px',
+                  fontSize: 12.5,
+                  color: 'var(--text2)',
+                }}
+              >
+                <InlineText value={a} onCommit={(next) => next && app.renameArea(a, next)} />
+                <button
+                  className="row-x"
+                  title="Remove area"
+                  onClick={() => app.deleteArea(a)}
+                  style={{ fontSize: 12, padding: '0 4px' }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <AddRow label="+ Add" placeholder="Area name. Enter to add." onAdd={app.addArea} />
+          </div>
+          <div style={caption}>
+            The categories goals and tasks sort into. Renaming an area updates everything filed
+            under it; removing one moves its items to the first area.
+          </div>
+        </Card>
+
+        {/* -------- Weekly review day -------- */}
+        <Card>
+          <CardLabel style={{ marginBottom: 14 }}>Weekly review day</CardLabel>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {WEEKDAYS.map((d) => {
+              const sel = s.weeklyDay === d;
               return (
                 <button
-                  key={t.key}
+                  key={d}
                   className={sel ? undefined : 'ghost-btn'}
-                  onClick={() => app.updateSettings({ coachTone: t.key })}
+                  onClick={() => app.updateSettings({ weeklyDay: d })}
+                  title={dayName(d)}
                   style={{
-                    borderRadius: 20,
-                    padding: '7px 16px',
-                    fontSize: 12.5,
+                    borderRadius: 8,
+                    padding: '7px 12px',
+                    fontSize: 12,
                     background: 'transparent',
                     cursor: 'pointer',
                     fontFamily: FONT_BODY,
                     ...(sel ? { border: '1px solid var(--accent)', color: 'var(--accent)' } : {}),
                   }}
                 >
-                  {t.label}
+                  {dayName(d).slice(0, 3)}
                 </button>
               );
             })}
           </div>
           <div style={{ ...caption, marginTop: 12 }}>
-            Sets the voice for the coach, reflections, and the evening debrief.
+            The weekly review compiles only on this day. Pick the day you actually sit down to
+            review.
+          </div>
+        </Card>
+
+        {/* -------- Desktop -------- */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 14.5, color: 'var(--text)' }}>
+              Keep running in the background
+            </div>
+            <button
+              className="theme-toggle"
+              onClick={() => app.updateSettings({ runInBackground: !s.runInBackground })}
+            >
+              <span
+                style={{
+                  width: 24,
+                  height: 13,
+                  borderRadius: 7,
+                  background: s.runInBackground ? 'var(--accent)' : 'var(--box)',
+                  position: 'relative',
+                  display: 'inline-block',
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: s.runInBackground ? 13 : 2,
+                    width: 9,
+                    height: 9,
+                    borderRadius: '50%',
+                    background: 'var(--card)',
+                    transition: 'left 0.15s ease',
+                  }}
+                />
+              </span>
+              {s.runInBackground ? 'On' : 'Off'}
+            </button>
+          </div>
+          <div style={caption}>
+            Applies to the installed desktop app: closing the window keeps it in the system tray
+            instead of quitting. The browser version ignores this.
           </div>
         </Card>
 

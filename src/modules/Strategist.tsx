@@ -7,7 +7,7 @@ export default function Strategist() {
   return (
     <section className="fade-up" style={{ maxWidth: 760 }}>
       <PageTitle>Strategist</PageTitle>
-      <PageSub>The view from the top: given who you&rsquo;re trying to become, what actually matters.</PageSub>
+      <PageSub>Given your stated goals, the highest-impact actions. Nothing else.</PageSub>
 
       <Card style={{ padding: 24, marginBottom: 16 }}>
         <div

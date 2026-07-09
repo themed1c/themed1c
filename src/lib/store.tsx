@@ -1,28 +1,36 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AIProvider, DumpItem, DumpType, Goal, MorningAction, PersistedState, Project,
-  Reflection, ScheduleItem, Settings, TopTask, WeeklyReview,
+  AIProvider, DumpItem, DumpType, FinanceKind, Goal, MorningAction,
+  PersistedState, Project, Reflection, ScheduleItem, Settings, TopTask, WeeklyReview,
 } from './types';
-import { AREAS } from './types';
 import { historyEntryFor, upsertHistory } from './history';
 import { clean, parseJSON, uid } from './clean';
 import {
   connectDataFile, createBackend, dataFileSupported, disconnectDataFile,
   getDataFileState, hadStoredLocalData, pushDataFile, reconnectDataFile,
 } from './backend';
-import { PASTELS, seedState } from './seed';
+import { PASTELS, seedFresh, seedState } from './seed';
 import { AnthropicProvider, OpenAIProvider, StubProvider } from './ai/provider';
-import { buildContext, prompts, scheduleSummary, toneInstruction } from './ai/prompts';
+import { buildContext, prompts, scheduleSummary } from './ai/prompts';
 import { applyTheme } from './theme';
 import { monthDay, timeToMinutes, todayISO } from './time';
 
 export type ModuleKey =
-  | 'dashboard' | 'dump' | 'vault' | 'goals' | 'roadmaps' | 'strategist'
+  | 'dashboard' | 'dump' | 'vault' | 'goals' | 'roadmaps' | 'strategist' | 'finance'
   | 'coach' | 'reflect' | 'weekly' | 'patterns' | 'settings';
 
 export type BusyKey =
   | 'dump' | 'replan' | 'cascade' | 'patterns' | 'reflect' | 'weekly'
-  | 'connections' | 'morning' | 'evening' | 'chat';
+  | 'connections' | 'morning' | 'evening' | 'chat' | 'finance';
+
+/** Answers from the first-run questions; null means "keep the sample data". */
+export interface OnboardingAnswers {
+  aboutMe: string;
+  areas: string[];
+  goalTitle: string;
+  goalArea: string;
+  habits: string[];
+}
 
 export type CascadeLevel = 'vision' | 'year' | 'quarter' | 'month' | 'week' | 'today';
 
@@ -61,9 +69,31 @@ export interface AppContextValue extends PersistedState {
   addScheduleItem(): void;
   updateScheduleItem(id: string, patch: Partial<Omit<ScheduleItem, 'id'>>): void;
   deleteScheduleItem(id: string): void;
+  reorderSchedule(from: number, to: number): void;
+  toggleScheduleRepeat(id: string): void;
   addProject(): void;
   updateProject(id: string, patch: Partial<Omit<Project, 'id'>>): void;
   deleteProject(id: string): void;
+
+  /** First-run setup: apply answers (fresh start) or keep the sample data. */
+  completeOnboarding(answers: OnboardingAnswers | null): void;
+
+  /** Goal/task area list management; renames remap existing goals and tasks. */
+  addArea(name: string): void;
+  renameArea(oldName: string, newName: string): void;
+  deleteArea(name: string): void;
+
+  /** Dashboard life-area scorecard management. */
+  addLifeArea(name: string): void;
+  renameLifeArea(index: number, name: string): void;
+  deleteLifeArea(index: number): void;
+  updateLifeAreaNote(index: number, note: string): void;
+
+  /** Money ledger. */
+  addFinanceEntry(label: string, amount: number, kind: FinanceKind): void;
+  deleteFinanceEntry(id: string): void;
+  cycleFinanceKind(id: string): void;
+  reviewFinances(): Promise<boolean>;
   /** Drop one learned preference (Settings) or wipe the whole list. */
   forgetMemory(index: number): void;
   clearMemory(): void;
@@ -111,6 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState<Record<BusyKey, boolean>>({
     dump: false, replan: false, cascade: false, patterns: false, reflect: false,
     weekly: false, connections: false, morning: false, evening: false, chat: false,
+    finance: false,
   });
   const [err, setErr] = useState<string | null>(null);
   const [connections, setConnections] = useState<string | null>(null);
@@ -132,7 +163,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const habits = loaded.habits.map((h) =>
         h.lastDone && h.lastDone !== today && h.done ? { ...h, done: false } : h,
       );
-      setData({ ...loaded, habits });
+      // New day: one-off schedule blocks from previous days fall away.
+      const schedule = loaded.schedule.filter((s) => !s.once || s.once === today);
+      setData({ ...loaded, habits, schedule });
+      if (schedule.length !== loaded.schedule.length) {
+        backend.save({ schedule }).catch(() => {});
+      }
       applyTheme(loaded.settings.dark);
       if (loaded.goals.length && !loaded.goals.some((g) => g.id === 'g1')) {
         setSelGoal(loaded.goals[0].id);
@@ -197,7 +233,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const context = useCallback(() => buildContext(dataRef.current), []);
-  const tone = useCallback(() => toneInstruction(dataRef.current.settings.coachTone), []);
 
   /** Wraps an AI action with its busy flag and the error toast. */
   const aiAction = useCallback(
@@ -351,7 +386,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addGoal = useCallback(() => {
     const g: Goal = {
       id: uid(),
-      area: 'School',
+      area: dataRef.current.settings.areas[0] ?? 'General',
       title: 'New goal',
       progress: 0,
       vision: 'What does done look like, in one sentence?',
@@ -412,7 +447,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateWithHistory({
         topTasks: [
           ...dataRef.current.topTasks,
-          { id: uid(), text: trimmed, area: 'School', done: false },
+          { id: uid(), text: trimmed, area: dataRef.current.settings.areas[0] ?? 'General', done: false },
         ],
       });
     },
@@ -428,9 +463,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const cycleTaskArea = useCallback(
     (id: string) => {
+      const areas = dataRef.current.settings.areas;
+      if (!areas.length) return;
       update({
         topTasks: dataRef.current.topTasks.map((t) =>
-          t.id === id ? { ...t, area: AREAS[(AREAS.indexOf(t.area) + 1) % AREAS.length] } : t,
+          t.id === id
+            ? { ...t, area: areas[(areas.indexOf(t.area) + 1) % areas.length] }
+            : t,
         ),
       });
     },
@@ -469,24 +508,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [updateWithHistory],
   );
 
-  const sortSchedule = (items: ScheduleItem[]): ScheduleItem[] =>
-    [...items].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
-
+  // New blocks land in time order; after that the user's manual order rules.
   const addScheduleItem = useCallback(() => {
-    update({
-      schedule: [
-        ...dataRef.current.schedule,
-        { id: uid(), time: '9:00 AM', label: 'New block', tag: 'Plan' },
-      ],
-    });
+    const items = [...dataRef.current.schedule];
+    const fresh: ScheduleItem = { id: uid(), time: '9:00 AM', label: 'New block', tag: 'Plan' };
+    const at = items.findIndex((s) => timeToMinutes(s.time) > timeToMinutes(fresh.time));
+    items.splice(at === -1 ? items.length : at, 0, fresh);
+    update({ schedule: items });
   }, [update]);
 
   const updateScheduleItem = useCallback(
     (id: string, patch: Partial<Omit<ScheduleItem, 'id'>>) => {
       update({
-        schedule: sortSchedule(
-          dataRef.current.schedule.map((s) => (s.id === id ? { ...s, ...patch } : s)),
-        ),
+        schedule: dataRef.current.schedule.map((s) => (s.id === id ? { ...s, ...patch } : s)),
       });
     },
     [update],
@@ -495,6 +529,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteScheduleItem = useCallback(
     (id: string) => {
       update({ schedule: dataRef.current.schedule.filter((s) => s.id !== id) });
+    },
+    [update],
+  );
+
+  const reorderSchedule = useCallback(
+    (from: number, to: number) => {
+      const items = [...dataRef.current.schedule];
+      if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
+      const [moved] = items.splice(from, 1);
+      items.splice(to, 0, moved);
+      update({ schedule: items });
+    },
+    [update],
+  );
+
+  const toggleScheduleRepeat = useCallback(
+    (id: string) => {
+      update({
+        schedule: dataRef.current.schedule.map((s) =>
+          s.id === id ? { ...s, once: s.once ? undefined : todayISO() } : s,
+        ),
+      });
     },
     [update],
   );
@@ -535,6 +591,191 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       update({ projects: dataRef.current.projects.filter((p) => p.id !== id) });
     },
     [update],
+  );
+
+  /* ---------- first-run onboarding ---------- */
+
+  const completeOnboarding = useCallback(
+    (answers: OnboardingAnswers | null) => {
+      const cur = dataRef.current;
+      if (!answers) {
+        update({ settings: { ...cur.settings, onboarded: true } });
+        return;
+      }
+      const areas = answers.areas.map((a) => a.trim()).filter(Boolean);
+      const finalAreas = areas.length ? areas : cur.settings.areas;
+      const goalArea = finalAreas.includes(answers.goalArea) ? answers.goalArea : finalAreas[0];
+      const goals: Goal[] = answers.goalTitle.trim()
+        ? [
+            {
+              id: uid(),
+              area: goalArea,
+              title: answers.goalTitle.trim(),
+              progress: 0,
+              vision: 'Define what done looks like, in one sentence.',
+              year: ['First milestone this year'],
+              quarter: ['First milestone this quarter'],
+              month: ['First step this month'],
+              week: ['First step this week'],
+              today: ['One concrete step today'],
+            },
+          ]
+        : [];
+      const habits = answers.habits
+        .map((h) => h.trim())
+        .filter(Boolean)
+        .map((name) => ({ id: uid(), name, streak: 0, done: false, lastDone: null }));
+      const next: PersistedState = {
+        ...seedFresh(),
+        goals,
+        habits,
+        settings: {
+          ...cur.settings,
+          aboutMe: answers.aboutMe.trim(),
+          areas: finalAreas,
+          onboarded: true,
+          weeklyDay: new Date().getDay(),
+        },
+      };
+      setData(next);
+      persist(next);
+      if (goals.length) setSelGoal(goals[0].id);
+    },
+    [update, persist],
+  );
+
+  /* ---------- goal/task area list ---------- */
+
+  const addArea = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      const d = dataRef.current;
+      if (!trimmed || d.settings.areas.includes(trimmed)) return;
+      update({ settings: { ...d.settings, areas: [...d.settings.areas, trimmed] } });
+    },
+    [update],
+  );
+
+  const renameArea = useCallback(
+    (oldName: string, newName: string) => {
+      const name = newName.trim();
+      const d = dataRef.current;
+      if (!name || name === oldName || d.settings.areas.includes(name)) return;
+      update({
+        settings: { ...d.settings, areas: d.settings.areas.map((a) => (a === oldName ? name : a)) },
+        goals: d.goals.map((g) => (g.area === oldName ? { ...g, area: name } : g)),
+        topTasks: d.topTasks.map((t) => (t.area === oldName ? { ...t, area: name } : t)),
+      });
+    },
+    [update],
+  );
+
+  const deleteArea = useCallback(
+    (name: string) => {
+      const d = dataRef.current;
+      if (d.settings.areas.length <= 1) return;
+      const areas = d.settings.areas.filter((a) => a !== name);
+      const fallback = areas[0];
+      update({
+        settings: { ...d.settings, areas },
+        goals: d.goals.map((g) => (g.area === name ? { ...g, area: fallback } : g)),
+        topTasks: d.topTasks.map((t) => (t.area === name ? { ...t, area: fallback } : t)),
+      });
+    },
+    [update],
+  );
+
+  /* ---------- dashboard life-area scorecard ---------- */
+
+  const addLifeArea = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      const d = dataRef.current;
+      if (!trimmed || d.areaScores.some((a) => a.name === trimmed)) return;
+      update({
+        areaScores: [...d.areaScores, { name: trimmed, score: 50, trend: 0, note: 'No data yet' }],
+      });
+    },
+    [update],
+  );
+
+  const renameLifeArea = useCallback(
+    (index: number, name: string) => {
+      const trimmed = name.trim();
+      const d = dataRef.current;
+      if (!trimmed || d.areaScores.some((a, i) => a.name === trimmed && i !== index)) return;
+      update({
+        areaScores: d.areaScores.map((a, i) => (i === index ? { ...a, name: trimmed } : a)),
+      });
+    },
+    [update],
+  );
+
+  const deleteLifeArea = useCallback(
+    (index: number) => {
+      update({ areaScores: dataRef.current.areaScores.filter((_, i) => i !== index) });
+    },
+    [update],
+  );
+
+  const updateLifeAreaNote = useCallback(
+    (index: number, note: string) => {
+      update({
+        areaScores: dataRef.current.areaScores.map((a, i) => (i === index ? { ...a, note } : a)),
+      });
+    },
+    [update],
+  );
+
+  /* ---------- money ledger ---------- */
+
+  const addFinanceEntry = useCallback(
+    (label: string, amount: number, kind: FinanceKind) => {
+      const trimmed = label.trim();
+      if (!trimmed || !(amount > 0)) return;
+      update({
+        finance: [
+          {
+            id: uid(),
+            date: todayISO(),
+            label: trimmed,
+            amount: Math.round(amount * 100) / 100,
+            kind,
+          },
+          ...dataRef.current.finance,
+        ],
+      });
+    },
+    [update],
+  );
+
+  const deleteFinanceEntry = useCallback(
+    (id: string) => {
+      update({ finance: dataRef.current.finance.filter((e) => e.id !== id) });
+    },
+    [update],
+  );
+
+  const cycleFinanceKind = useCallback(
+    (id: string) => {
+      const order: FinanceKind[] = ['expense', 'income', 'saving'];
+      update({
+        finance: dataRef.current.finance.map((e) =>
+          e.id === id ? { ...e, kind: order[(order.indexOf(e.kind) + 1) % order.length] } : e,
+        ),
+      });
+    },
+    [update],
+  );
+
+  const reviewFinances = useCallback(
+    () =>
+      aiAction('finance', async () => {
+        const out = clean(await provider().complete(prompts.finance(context())));
+        if (!out.trim()) throw new Error('empty read');
+        update({ financeRead: out.trim() });
+      }),
+    [aiAction, provider, context, update],
   );
 
   const updateGoalItem = useCallback(
@@ -651,7 +892,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const submitReflection = useCallback(
     (answers: [string, string, string, string, string]) =>
       aiAction('reflect', async () => {
-        const out = clean(await provider().complete(prompts.reflection(context(), tone(), answers)));
+        const out = clean(await provider().complete(prompts.reflection(context(), answers)));
         const d = dataRef.current;
         const today = todayISO();
         const entry: Reflection = { date: today, answers, output: out };
@@ -668,7 +909,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updateWithHistory({ reflections, vault: [journal, ...d.vault] });
         learnQuietly('tonight’s reflection', answers.filter(Boolean).join('\n'));
       }),
-    [aiAction, provider, context, tone, updateWithHistory, learnQuietly],
+    [aiAction, provider, context, updateWithHistory, learnQuietly],
   );
 
   const genWeekly = useCallback(
@@ -707,10 +948,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const done =
           dataRef.current.topTasks.filter((t) => t.done).map((t) => t.text).join('; ') ||
           'nothing marked done yet';
-        const out = clean(await provider().complete(prompts.strategistEvening(context(), done, tone())));
+        const out = clean(await provider().complete(prompts.strategistEvening(context(), done)));
         update({ eveningText: out });
       }),
-    [aiAction, provider, context, tone, update],
+    [aiAction, provider, context, update],
   );
 
   /** Rolls chat messages beyond the live window into a running summary so the
@@ -755,7 +996,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const live = chat.slice(covered);
         const reply = clean(
           await provider().complete({
-            system: prompts.coachSystem(context(), tone(), d.chatSummary),
+            system: prompts.coachSystem(context(), d.chatSummary),
             messages: live.map((m) => ({ role: m.role, content: m.content })),
           }),
         );
@@ -765,7 +1006,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         maybeSummarizeChat(chatWithReply);
       });
     },
-    [aiAction, provider, context, tone, update, learnQuietly, maybeSummarizeChat],
+    [aiAction, provider, context, update, learnQuietly, maybeSummarizeChat],
   );
 
   /* ---------- derived ---------- */
@@ -803,9 +1044,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addScheduleItem,
     updateScheduleItem,
     deleteScheduleItem,
+    reorderSchedule,
+    toggleScheduleRepeat,
     addProject,
     updateProject,
     deleteProject,
+    completeOnboarding,
+    addArea,
+    renameArea,
+    deleteArea,
+    addLifeArea,
+    renameLifeArea,
+    deleteLifeArea,
+    updateLifeAreaNote,
+    addFinanceEntry,
+    deleteFinanceEntry,
+    cycleFinanceKind,
+    reviewFinances,
     forgetMemory,
     clearMemory,
     exportData,

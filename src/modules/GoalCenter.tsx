@@ -4,7 +4,7 @@ import {
   Card, CardLabel, GhostButton, InlineText, Num, PageSub, PageTitle, Track,
 } from '../components/ui';
 import { FONT_BODY, FONT_NUM } from '../lib/theme';
-import { AREAS, type Goal } from '../lib/types';
+import type { Goal } from '../lib/types';
 
 interface CascadeRow {
   key: Level;
@@ -54,9 +54,9 @@ export default function GoalCenter() {
   return (
     <section className="fade-up">
       <PageTitle>Goal Center</PageTitle>
-      <PageSub>Every goal is a workspace. The roadmap rewrites itself as you make progress.</PageSub>
+      <PageSub>Each goal cascades from vision to today. Everything is editable in place.</PageSub>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16, alignItems: 'start' }}>
+      <div className="goal-grid">
         {/* Goal selector cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {app.goals.map((g) => {
@@ -110,12 +110,14 @@ export default function GoalCenter() {
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <button
-                  title="Change life area"
-                  onClick={() =>
+                  title="Change area"
+                  onClick={() => {
+                    const areas = app.settings.areas;
+                    if (!areas.length) return;
                     app.updateGoalMeta(sel.id, {
-                      area: AREAS[(AREAS.indexOf(sel.area) + 1) % AREAS.length],
-                    })
-                  }
+                      area: areas[(areas.indexOf(sel.area) + 1) % areas.length],
+                    });
+                  }}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -159,14 +161,17 @@ export default function GoalCenter() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                <GhostButton
+                <button
+                  className="danger-btn"
                   onClick={() => {
-                    if (window.confirm(`Remove the goal "${sel.title}"?`)) app.deleteGoal(sel.id);
+                    if (window.confirm(`Remove the goal "${sel.title}"? This cannot be undone.`)) {
+                      app.deleteGoal(sel.id);
+                    }
                   }}
-                  style={{ fontSize: 12, padding: '6px 12px' }}
+                  style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7 }}
                 >
-                  Remove
-                </GhostButton>
+                  Remove goal
+                </button>
                 <GhostButton
                   onClick={() => {
                     if (!app.busy.cascade) void app.regenCascade();

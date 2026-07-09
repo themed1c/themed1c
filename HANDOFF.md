@@ -4,13 +4,15 @@ Context document for any developer or AI session picking up this project. Read t
 
 ## ⚠️ NEXT SESSION (planned for Friday) — what still must be done
 
-1. **Run the debug sweep.** Three major features (personalization/editing, daily history ledger, coach summarization) were implemented and pass all 30 automated checks, but the planned multi-agent adversarial review was cut short by end of session. The exact workflow script is saved at `scripts/debug-sweep.workflow.js` (5 review dimensions, 3 adversarial verifiers per finding). Re-run it (it reviews the repo in place), fix any CONFIRMED findings, then re-run `node scripts/verify.js` and keep all 30 checks green.
-2. **Deliver the new build to the user.** The user's copy at home ("Life Organization.html", sent earlier on Jul 8) contains everything up to backup/restore + live data file, but NOT the three newest features. After the sweep passes: `npm run build:portable`, then send `dist-portable/index.html` renamed to "Life Organization.html" with plain-language notes (the user is non-technical).
-3. Commit and push everything to `claude/handoff-push-pntrf4` (write access works; pushes go through).
+1. **Run the debug sweep.** Two large feature waves shipped since the last full review: (a) personalization/editing + daily history ledger + coach summarization, and (b) onboarding/tutorial/fresh-start, professional-blunt tone overhaul (coach tones deleted), Finances module, editable life areas and goal areas, schedule daily/once + drag reorder, weekly-review day gate, Electron tray/background mode, compact/responsive window, and the GitHub Actions installer pipeline. All pass the 39 automated checks, but the multi-agent adversarial review was never run over them. The workflow script is saved at `scripts/debug-sweep.workflow.js` (5 review dimensions, 3 adversarial verifiers per finding); update its "recent changes" preamble to mention wave (b), run it, fix CONFIRMED findings, re-run `node scripts/verify.js` (keep all 39 green).
+2. **Verify the installer pipeline ran.** Pushing to the branch triggers `.github/workflows/build-installers.yml` (Windows/macOS/Linux, unsigned, artifacts on the run). Check the Actions run succeeded; if electron-builder fails on a runner, fix the config. The Windows .exe artifact is the user's installer; walk them through downloading it (they are non-technical).
+3. **Deliver the final build**: portable HTML plus the installer link, with plain-language notes.
 
 **Explicitly declined by the user (do not build):** day-start/day-end nudges (auto-morning-strategist, evening reflection reminders).
 
-**Backlog after that (user-approved direction: maximize what the engine takes in and understands):** packaged installers via `npm run dist` (must run on a normal machine, not a sandbox; Mac targets need macOS), phone-friendly layout, smarter area-score model, embeddings for Vault search, OS calendar integration.
+**Proposed but not built (user asked for suggestions):** self-improvement agents once an API key is connected. Proposal given to the user: a nightly "auditor" pass (data hygiene: dedupe vault, flag stale goals), a weekly "prompt tuner" (adjusts stored prompt phrasing based on which outputs the user edits or ignores), and a monthly "feature scout" (reads the history ledger and drafts a prioritized improvement list a future Claude session implements). True self-modifying code was ruled out as unsafe; the realistic loop is: app collects evidence, agents draft changes, a Claude session applies them.
+
+**Backlog:** phone-friendly layout, smarter area-score model, embeddings for Vault search, OS calendar integration.
 
 ## What this is
 

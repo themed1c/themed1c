@@ -1,8 +1,23 @@
 import type {
-  ChatTurn, CoachTone, Goal, Habit, DumpItem, HistoryDay, Reflection, Settings,
+  ChatTurn, FinanceEntry, Goal, Habit, DumpItem, HistoryDay, Reflection, Settings,
   TopTask, PersistedState, VaultNote,
 } from '../types';
 import { historyContext } from '../history';
+
+function financeContext(entries: FinanceEntry[]): string {
+  if (!entries.length) return '';
+  const month = entries.filter((e) => e.date.slice(0, 7) === localMonth());
+  const sum = (kind: string, list: FinanceEntry[]) =>
+    list.filter((e) => e.kind === kind).reduce((a, e) => a + e.amount, 0);
+  const savedAll = sum('saving', entries);
+  const recent = entries.slice(0, 8).map((e) => `- ${e.date}: ${e.kind} $${e.amount} (${e.label})`);
+  return `\n\nMONEY (hand-entered ledger):\nThis month: income $${sum('income', month)}, spending $${sum('expense', month)}, put to savings $${sum('saving', month)}. Total recorded savings: $${savedAll}.\nRecent entries:\n${recent.join('\n')}`;
+}
+
+function localMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 /** Serialized snapshot of the user's data, prefixed to every AI call. Derived
  *  from the design prototype's context, extended with the person's own "about
@@ -16,6 +31,7 @@ export function buildContext(s: {
   patterns: string[];
   memory: string[];
   history: HistoryDay[];
+  finance: FinanceEntry[];
   reflections: Reflection[];
   settings: Settings;
 }): string {
@@ -42,15 +58,7 @@ export function buildContext(s: {
           last.output ? `\nThe read they got back: ${last.output.slice(0, 300)}` : ''
         }`
       : '';
-  return `You are the quiet engine inside a personal life-organization system. ${about} Never mention being an AI; speak like a sharp, warm, plainspoken coach. Be concrete and reference their real data.\n\nGOALS:\n${g}\n\nTODAY'S TOP TASKS:\n${t}\n\nHABITS:\n${h}\n\nRECENT BRAIN DUMP:\n${d}\n\nOBSERVED PATTERNS:\n${p}${mem}${historyContext(s.history)}${refl}\n\nNever use an em dash in any response; use commas, colons, or periods instead.`;
-}
-
-export function toneInstruction(tone: CoachTone): string {
-  return {
-    direct: 'Be direct and brief. No fluff.',
-    supportive: 'Be warm and encouraging first, practical second.',
-    analytical: 'Be analytical: reason from the data, cite specifics.',
-  }[tone];
+  return `You are the quiet engine inside a personal life-organization system. ${about} Never mention being an AI. Write like a senior advisor: professional, blunt, and logical. Conclusion first, then the reasons. No pleasantries, no cheerleading, no filler. Be concrete and cite their real data.\n\nGOALS:\n${g}\n\nTODAY'S TOP TASKS:\n${t}\n\nHABITS:\n${h}\n\nRECENT BRAIN DUMP:\n${d}\n\nOBSERVED PATTERNS:\n${p}${mem}${historyContext(s.history)}${financeContext(s.finance)}${refl}\n\nNever use an em dash in any response; use commas, colons, or periods instead.`;
 }
 
 export const REFLECTION_QUESTIONS = [
@@ -90,12 +98,10 @@ export const prompts = {
     );
   },
 
-  reflection(context: string, tone: string, answers: string[]): string {
+  reflection(context: string, answers: string[]): string {
     const qa = REFLECTION_QUESTIONS.map((q, i) => q + '\n' + (answers[i] || '(skipped)')).join('\n\n');
     return (
       context +
-      '\n' +
-      tone +
       '\n\nTonight’s reflection:\n' +
       qa +
       '\n\nRespond in under 100 words: one honest observation, one thing to protect tomorrow, one thing to drop. Plain text, no headers.'
@@ -126,19 +132,26 @@ export const prompts = {
     );
   },
 
-  strategistEvening(context: string, done: string, tone: string): string {
+  strategistEvening(context: string, done: string): string {
     return (
       context +
-      `\n\nCompleted today: ${done}.\n\nEvening debrief in under 110 words, plain text: what moved them closer to their goals, what slowed them down, and how tomorrow’s plan should change. ` +
-      tone
+      `\n\nCompleted today: ${done}.\n\nEvening debrief in under 110 words, plain text: what moved them closer to their goals, what slowed them down, and how tomorrow’s plan should change.`
     );
   },
 
-  coachSystem(context: string, tone: string, chatSummary?: string): string {
+  coachSystem(context: string, chatSummary?: string): string {
     const summary = chatSummary?.trim()
       ? `\n\nEARLIER IN THIS ONGOING CONVERSATION (condensed; the recent messages follow live): ${chatSummary.trim()}`
       : '';
-    return context + summary + '\n' + tone + ' Keep replies under 120 words.';
+    return context + summary + '\nKeep replies under 120 words.';
+  },
+
+  /** Money review: totals are already in the context's MONEY section. */
+  finance(context: string): string {
+    return (
+      context +
+      '\n\nAssess their money picture from the MONEY section. Reply in under 160 words, plain text, three short paragraphs: (1) the current position, stated bluntly with the numbers; (2) the single biggest lever to grow savings, from their actual spending; (3) two or three investment directions worth researching (index funds, sectors, or specific well-known tickers), each with a one-line rationale. End with exactly this sentence: These are directions to research, not financial advice.'
+    );
   },
 
   /** Rolls messages older than the live window into a running summary so long

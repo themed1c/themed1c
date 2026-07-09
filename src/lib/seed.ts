@@ -1,4 +1,5 @@
 import type { PersistedState } from './types';
+import { DEFAULT_AREAS } from './types';
 import { uid } from './clean';
 import { todayISO } from './time';
 
@@ -161,11 +162,12 @@ export function seedState(): PersistedState {
     eveningText: 'Run the debrief tonight: it reads today’s tasks, habits, and reflection, then reshapes tomorrow.',
     memory: [],
     history: [],
+    finance: [],
+    financeRead: '',
     chatSummary: '',
     chatSummarized: 0,
     settings: {
       dark: false,
-      coachTone: 'direct',
       topCount: 3,
       provider: 'stub',
       apiKey: '',
@@ -173,7 +175,51 @@ export function seedState(): PersistedState {
       openaiApiKey: '',
       openaiModel: 'gpt-5.1',
       aboutMe: '',
+      onboarded: false,
+      weeklyDay: new Date().getDay(),
+      runInBackground: true,
+      areas: DEFAULT_AREAS,
     },
+  };
+}
+
+/** A clean slate for people who answer the first-run questions instead of
+ *  keeping the sample data. Settings are layered on by the caller. */
+export function seedFresh(): Omit<PersistedState, 'settings'> {
+  return {
+    dumpItems: [],
+    goals: [],
+    topTasks: [],
+    schedule: [],
+    habits: [],
+    projects: [],
+    areaScores: [
+      { name: 'Career', score: 50, trend: 0, note: 'No data yet' },
+      { name: 'Money', score: 50, trend: 0, note: 'No data yet' },
+      { name: 'Health', score: 50, trend: 0, note: 'No data yet' },
+      { name: 'Learning', score: 50, trend: 0, note: 'No data yet' },
+      { name: 'Relationships', score: 50, trend: 0, note: 'No data yet' },
+      { name: 'Focus', score: 50, trend: 0, note: 'No data yet' },
+    ],
+    vault: [],
+    chat: [
+      {
+        role: 'assistant',
+        content:
+          'State what you are working on, or ask for the day’s priorities. Replies are grounded in your data.',
+      },
+    ],
+    patterns: [],
+    weekly: { wins: [], fails: [], habits: [], time: [], progress: [], changes: [] },
+    reflections: [],
+    morning: [],
+    eveningText: 'Run the debrief at day’s end. It reads the day and reshapes tomorrow.',
+    memory: [],
+    history: [],
+    finance: [],
+    financeRead: '',
+    chatSummary: '',
+    chatSummarized: 0,
   };
 }
 

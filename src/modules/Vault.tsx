@@ -15,7 +15,7 @@ export default function Vault() {
   return (
     <section className="fade-up">
       <PageTitle>Knowledge Vault</PageTitle>
-      <PageSub>Everything you've ever written, searchable.</PageSub>
+      <PageSub>Everything you have written, indexed and searchable.</PageSub>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <input

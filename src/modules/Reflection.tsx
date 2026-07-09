@@ -42,7 +42,7 @@ export default function Reflection() {
   return (
     <section className="fade-up" style={{ maxWidth: 720 }}>
       <PageTitle>Evening Reflection</PageTitle>
-      <PageSub>Five minutes. Be honest.</PageSub>
+      <PageSub>Answer plainly. The read back is only as good as the input.</PageSub>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {QUESTIONS.map((q, i) => (

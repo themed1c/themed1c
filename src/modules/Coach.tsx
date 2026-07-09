@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../lib/store';
-import { AccentButton, GhostButton, PageSub, PageTitle } from '../components/ui';
-
-const CHIPS = [
-  'I’m overwhelmed.',
-  'What should I work on next?',
-  'What have I been avoiding?',
-  'Am I wasting time?',
-];
+import { AccentButton, PageSub, PageTitle } from '../components/ui';
 
 export default function Coach() {
   const app = useApp();
@@ -36,7 +29,7 @@ export default function Coach() {
     >
       <PageTitle style={{ margin: '0 0 6px' }}>Coach</PageTitle>
       <PageSub style={{ marginBottom: 20 }}>
-        Knows everything you've written. Ask it anything.
+        Direct answers, grounded in your data. State the situation or ask the question.
       </PageSub>
 
       <div
@@ -85,23 +78,11 @@ export default function Coach() {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, margin: '12px 0 10px', flexWrap: 'wrap' }}>
-        {CHIPS.map((c) => (
-          <GhostButton
-            key={c}
-            onClick={() => send(c)}
-            style={{ fontSize: 12.5, padding: '6px 13px', borderRadius: 20 }}
-          >
-            {c}
-          </GhostButton>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
         <input
           className="field"
           style={{ flex: 1 }}
-          placeholder="Talk it through…"
+          placeholder="Ask."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

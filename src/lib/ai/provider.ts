@@ -78,6 +78,7 @@ export class StubProvider implements AIProvider {
     const p = request;
     if (p.includes('Maintain their private preference list')) return learnedPrefs(p);
     if (p.includes('Condense the earlier part of this coaching conversation')) return chatSummaryStub(p);
+    if (p.includes('Assess their money picture')) return FINANCE_TEXT;
     if (p.includes('Split this brain dump')) return classifyDump(p);
     if (p.includes('highest-impact tasks for today')) return REPLAN_JSON;
     if (p.includes('Rebuild the roadmap for the goal')) return cascadeFor(p);
@@ -120,6 +121,9 @@ function learnedPrefs(prompt: string): string {
     additions.push('Responds better to one clear next step than a long list.');
   return JSON.stringify([...existing, ...additions].slice(0, 12));
 }
+
+const FINANCE_TEXT =
+  'Position: income covers spending with a thin margin, and savings grow only in the months you automate the transfer. The numbers say consistency, not income, is the constraint.\n\nBiggest lever: fix the transfer on payday before discretionary spending starts. Recurring small purchases are the bulk of the leak; cap them with a weekly figure and stop tracking every line.\n\nWorth researching: a broad index fund (S&P 500 or total market) as the default for long-horizon money; a high-yield savings account for the emergency floor; one sector you actually understand from your own work, studied before any position. These are directions to research, not financial advice.';
 
 /* ---------- coach summary: offline stand-in for the rolling condensation */
 

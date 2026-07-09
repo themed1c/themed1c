@@ -278,6 +278,83 @@ select {
   width: 100%;
 }
 
+/* Danger button: quiet until hovered, then unambiguous */
+.danger-btn {
+  background: transparent;
+  border: 1px solid var(--chip);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+.danger-btn:hover {
+  color: var(--err-text);
+  border-color: var(--bad);
+  background: var(--err-bg);
+}
+
+/* Layout that folds down cleanly at task-manager-sized windows */
+.sidebar {
+  width: 228px;
+  flex-shrink: 0;
+}
+
+.main-pad {
+  flex: 1;
+  overflow-y: auto;
+  padding: 36px 44px 80px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.areas-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 28px;
+}
+
+.goal-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .grid-2,
+  .dash-grid,
+  .areas-grid,
+  .goal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .main-pad {
+    padding: 22px 20px 60px;
+  }
+}
+
+@media (max-width: 760px) {
+  .sidebar {
+    width: 176px;
+  }
+}
+
+/* Drag-to-reorder rows */
+.drag-over {
+  border-top: 2px solid var(--accent) !important;
+}
+
 /* Small remove affordance at the end of editable rows */
 .row-x {
   border: none;

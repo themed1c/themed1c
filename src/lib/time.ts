@@ -4,6 +4,11 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+/** Full weekday name for a 0-6 index (0 = Sunday). */
+export function dayName(i: number): string {
+  return DAYS[((i % 7) + 7) % 7];
+}
+
 /** "JUL 8 · 2026" for the sidebar. */
 export function dateShort(d = new Date()): string {
   return `${MONTHS[d.getMonth()].slice(0, 3).toUpperCase()} ${d.getDate()} · ${d.getFullYear()}`;
