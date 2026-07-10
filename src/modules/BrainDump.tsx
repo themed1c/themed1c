@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../lib/store';
 import { Card, CardLabel, PageTitle, PageSub, AccentButton, Num } from '../components/ui';
+import { confirmDialog } from '../components/dialog';
 import { FONT_BODY } from '../lib/theme';
 import { relativeWhen } from '../lib/time';
 import type { DumpType } from '../lib/types';
@@ -109,6 +110,22 @@ export default function BrainDump() {
             <Num size={11} color="var(--faint)" style={{ flexShrink: 0 }}>
               {relativeWhen(item.createdAt)}
             </Num>
+            <button
+              className="row-x"
+              title="Delete this entry"
+              onClick={() => {
+                void confirmDialog({
+                  title: `Delete this ${item.type.toLowerCase()}?`,
+                  body: `"${item.text.length > 90 ? item.text.slice(0, 87) + '…' : item.text}" is removed from the Brain Dump, and its copy leaves the Knowledge Vault. This cannot be undone.`,
+                  confirmLabel: 'Delete',
+                  danger: true,
+                }).then((yes) => {
+                  if (yes) app.deleteDumpItem(item.id);
+                });
+              }}
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>

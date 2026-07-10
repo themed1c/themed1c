@@ -72,6 +72,8 @@ export interface AppContextValue extends PersistedState {
   removeGoalItem(goalId: string, level: Exclude<CascadeLevel, 'vision'>, index: number): void;
   addTask(text: string): void;
   deleteTask(id: string): void;
+  /** Removes a captured brain-dump item and its indexed copy in the vault. */
+  deleteDumpItem(id: string): void;
   cycleTaskArea(id: string): void;
   addHabit(name: string): void;
   renameHabit(id: string, name: string): void;
@@ -600,6 +602,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteTask = useCallback(
     (id: string) => {
       updateWithHistory({ topTasks: dataRef.current.topTasks.filter((t) => t.id !== id) });
+    },
+    [updateWithHistory],
+  );
+
+  const deleteDumpItem = useCallback(
+    (id: string) => {
+      const d = dataRef.current;
+      const item = d.dumpItems.find((i) => i.id === id);
+      if (!item) return;
+      // Capture filed a copy into the vault (same text and tag, no shared id);
+      // deleting the thought takes exactly one matching copy with it.
+      const at = d.vault.findIndex((v) => v.tag === item.type && v.snippet === item.text);
+      updateWithHistory({
+        dumpItems: d.dumpItems.filter((i) => i.id !== id),
+        vault: at === -1 ? d.vault : d.vault.filter((_, i) => i !== at),
+      });
     },
     [updateWithHistory],
   );
@@ -1322,6 +1340,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     removeGoalItem,
     addTask,
     deleteTask,
+    deleteDumpItem,
     cycleTaskArea,
     addHabit,
     renameHabit,
