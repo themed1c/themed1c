@@ -3,6 +3,7 @@ import { useApp, type CascadeLevel as Level } from '../lib/store';
 import {
   Card, CardLabel, GhostButton, InlineText, Num, PageSub, PageTitle, Track,
 } from '../components/ui';
+import { confirmDialog } from '../components/dialog';
 import { FONT_BODY, FONT_NUM } from '../lib/theme';
 import type { Goal } from '../lib/types';
 
@@ -97,6 +98,15 @@ export default function GoalCenter() {
           </GhostButton>
         </div>
 
+        {!sel && (
+          <Card style={{ padding: 26 }}>
+            <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.65 }}>
+              No goals yet. Add one and it gets a cascade: the vision, then the year, the quarter,
+              the month, this week, and today. Every line is yours to edit.
+            </div>
+          </Card>
+        )}
+
         {/* Cascade panel */}
         {sel && (
           <Card style={{ padding: 26 }}>
@@ -135,7 +145,7 @@ export default function GoalCenter() {
                     onCommit={(title) => title && app.updateGoalMeta(sel.id, { title })}
                   />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, marginTop: 6 }}>
                   <InlineText
                     value={String(sel.progress)}
                     title="Click to edit percent complete"
@@ -150,8 +160,10 @@ export default function GoalCenter() {
                       fontWeight: 500,
                       fontSize: 12,
                       color: 'var(--muted)',
-                      minWidth: 18,
-                      width: 34,
+                      // Hug the digits: a fixed box strands "% complete" far to
+                      // the right of a one-digit value like a new goal's 0.
+                      width: `${String(sel.progress).length + 1}ch`,
+                      minWidth: '2ch',
                       display: 'inline-block',
                     }}
                   />
@@ -164,9 +176,14 @@ export default function GoalCenter() {
                 <button
                   className="danger-btn"
                   onClick={() => {
-                    if (window.confirm(`Remove the goal "${sel.title}"? This cannot be undone.`)) {
-                      app.deleteGoal(sel.id);
-                    }
+                    void confirmDialog({
+                      title: `Remove the goal "${sel.title}"?`,
+                      body: 'Its whole cascade, from vision to today, goes with it. This cannot be undone.',
+                      confirmLabel: 'Remove goal',
+                      danger: true,
+                    }).then((yes) => {
+                      if (yes) app.deleteGoal(sel.id);
+                    });
                   }}
                   style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7 }}
                 >

@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AIProvider, DumpItem, DumpType, FinanceKind, Goal, MorningAction,
-  PersistedState, Project, Reflection, ScheduleItem, Settings, TopTask, WeeklyReview,
+  PersistedState, Project, Reflection, ScheduleItem, Settings, SocialFetchResult,
+  SocialPlatform, SocialProfile, TopTask, WeeklyReview,
 } from './types';
 import { historyEntryFor, upsertHistory } from './history';
 import { clean, parseJSON, uid } from './clean';
@@ -9,6 +10,7 @@ import {
   connectDataFile, createBackend, dataFileSupported, disconnectDataFile,
   getDataFileState, hadStoredLocalData, pushDataFile, reconnectDataFile,
 } from './backend';
+import { confirmDialog } from '../components/dialog';
 import { PASTELS, seedFresh, seedState } from './seed';
 import { AnthropicProvider, OpenAIProvider, StubProvider } from './ai/provider';
 import { buildContext, prompts, scheduleSummary } from './ai/prompts';
@@ -17,11 +19,19 @@ import { monthDay, timeToMinutes, todayISO } from './time';
 
 export type ModuleKey =
   | 'dashboard' | 'dump' | 'vault' | 'goals' | 'roadmaps' | 'strategist' | 'finance'
-  | 'coach' | 'reflect' | 'weekly' | 'patterns' | 'settings';
+  | 'coach' | 'reflect' | 'weekly' | 'patterns' | 'settings' | 'social';
 
 export type BusyKey =
   | 'dump' | 'replan' | 'cascade' | 'patterns' | 'reflect' | 'weekly'
-  | 'connections' | 'morning' | 'evening' | 'chat' | 'finance';
+  | 'connections' | 'morning' | 'evening' | 'chat' | 'finance' | 'social';
+
+/** Minimum time between profile reads, per platform. Instagram is generous on
+ *  purpose: rare, anonymous, single-request reads look like a person, not a
+ *  bot, and keep the user's account entirely out of the picture. */
+export const SOCIAL_COOLDOWN: Record<SocialPlatform, number> = {
+  instagram: 12 * 60 * 60 * 1000,
+  tiktok: 2 * 60 * 60 * 1000,
+};
 
 /** Answers from the first-run questions; null means "keep the sample data". */
 export interface OnboardingAnswers {
@@ -75,8 +85,17 @@ export interface AppContextValue extends PersistedState {
   updateProject(id: string, patch: Partial<Omit<Project, 'id'>>): void;
   deleteProject(id: string): void;
 
-  /** First-run setup: apply answers (fresh start) or keep the sample data. */
-  completeOnboarding(answers: OnboardingAnswers | null): void;
+  /** First-run setup: apply answers (fresh start), start empty, or keep the
+   *  sample data (null). */
+  completeOnboarding(answers: OnboardingAnswers | null | 'empty'): void;
+
+  /** Read-only social account tracking (desktop app). */
+  connectSocial(platform: SocialPlatform, handle: string): Promise<boolean>;
+  refreshSocial(): Promise<boolean>;
+  disconnectSocial(): void;
+
+  /** Erase everything and return to the first-run screen. Irreversible. */
+  wipeAllData(): void;
 
   /** Goal/task area list management; renames remap existing goals and tasks. */
   addArea(name: string): void;
@@ -135,7 +154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState<Record<BusyKey, boolean>>({
     dump: false, replan: false, cascade: false, patterns: false, reflect: false,
     weekly: false, connections: false, morning: false, evening: false, chat: false,
-    finance: false,
+    finance: false, social: false,
   });
   const [err, setErr] = useState<string | null>(null);
   const [connections, setConnections] = useState<string | null>(null);
@@ -159,17 +178,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       // New day: one-off schedule blocks from previous days fall away.
       const schedule = loaded.schedule.filter((s) => !s.once || s.once === today);
+      // Strategist output is advice about one specific day. Yesterday's is not
+      // today's, and a blank slate beats a confidently stale plan.
+      const staleMorning = loaded.morningDate !== today;
+      const staleEvening = loaded.eveningDate !== today;
+      const morning = staleMorning ? [] : loaded.morning;
+      const morningDate = staleMorning ? '' : loaded.morningDate;
+      const eveningText = staleEvening ? '' : loaded.eveningText;
+      const eveningDate = staleEvening ? '' : loaded.eveningDate;
       // People whose data predates onboarding never see the wizard: they are
       // already set up, and the fresh-start path must not endanger real data.
       const settings =
         !loaded.settings.onboarded && hadStoredLocalData()
           ? { ...loaded.settings, onboarded: true }
           : loaded.settings;
-      setData({ ...loaded, habits, schedule, settings });
+      setData({ ...loaded, habits, schedule, settings, morning, morningDate, eveningText, eveningDate });
       if (schedule.length !== loaded.schedule.length || settings !== loaded.settings) {
         backend.save({ schedule, settings }).catch(() => {});
       }
+      if (staleMorning || staleEvening) {
+        backend.save({ morning, morningDate, eveningText, eveningDate }).catch(() => {});
+      }
       applyTheme(loaded.settings.dark);
+      // Connected account: restore its profile picture as the window icon.
+      if (loaded.social?.avatar) void window.lifeOS?.setAppIcon?.(loaded.social.avatar);
       if (loaded.goals.length && !loaded.goals.some((g) => g.id === 'g1')) {
         setSelGoal(loaded.goals[0].id);
       }
@@ -197,8 +229,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         h.done && h.lastDone !== today ? { ...h, done: false } : h,
       );
       const schedule = d.schedule.filter((s) => !s.once || s.once === today);
-      setData((prev) => ({ ...prev, habits, schedule }));
-      backend.save({ habits, schedule }).catch(() => {});
+      // Midnight also retires the Strategist's advice for the day just ended.
+      const rolled = {
+        morning: [],
+        morningDate: '',
+        eveningText: '',
+        eveningDate: '',
+      } satisfies Partial<PersistedState>;
+      setData((prev) => ({ ...prev, habits, schedule, ...rolled }));
+      backend.save({ habits, schedule, ...rolled }).catch(() => {});
     }, 60_000);
     return () => clearInterval(tick);
   }, [todayKey]);
@@ -218,6 +257,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
+  /* ---------- weekly review notification: once, on the chosen day ----------
+   * todayKey re-runs this across midnights, so the tray app can sit open for
+   * weeks and still speak up on the right morning. */
+  useEffect(() => {
+    if (!hydrated || typeof Notification === 'undefined') return;
+    let cancelled = false;
+    void (async () => {
+      const s = dataRef.current.settings;
+      const today = todayISO();
+      if (!s.onboarded || new Date().getDay() !== s.weeklyDay || s.lastWeeklyNotice === today) return;
+      let perm = Notification.permission;
+      if (perm === 'default') {
+        try {
+          perm = await Notification.requestPermission();
+        } catch {
+          return;
+        }
+      }
+      if (cancelled || perm !== 'granted') return;
+      // Re-check: an await passed, and the day or the flag may have moved.
+      if (dataRef.current.settings.lastWeeklyNotice === today) return;
+      try {
+        const n = new Notification('Weekly Review', {
+          body: 'The week is ready to compile. Ten minutes, whenever you have them.',
+        });
+        n.onclick = () => {
+          setModule('weekly');
+          void window.lifeOS?.show?.();
+          window.focus();
+        };
+        update({ settings: { ...dataRef.current.settings, lastWeeklyNotice: today } });
+      } catch {
+        /* notifications unavailable on this system */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, todayKey, update]);
+
   /** Like update(), but also refreshes today's entry in the daily ledger from
    *  the state being committed. Use for anything the ledger measures. */
   const updateWithHistory = useCallback(
@@ -229,8 +308,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [update],
   );
 
-  const fail = useCallback(() => {
-    setErr('Couldn’t reach the engine, try again in a moment.');
+  const fail = useCallback((msg?: string) => {
+    setErr(msg ?? 'Couldn’t reach the engine, try again in a moment.');
     if (errTimer.current) clearTimeout(errTimer.current);
     errTimer.current = setTimeout(() => setErr(null), 4000);
   }, []);
@@ -381,9 +460,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Browser was wiped: recover everything from the file.
       importData(r.fileState);
     } else if (r.fileState && fileRich > hereRich + 3) {
-      const loadFile = window.confirm(
-        'The data file holds more history than this browser. Load the file version and replace what is here?',
-      );
+      const loadFile = await confirmDialog({
+        title: 'The data file holds more history than this browser.',
+        body: 'Load the file version and replace what is here? Choosing Cancel keeps what is here and refreshes the file from it.',
+        confirmLabel: 'Load the file',
+      });
       if (loadFile) importData(r.fileState);
       else pushDataFile(dataRef.current);
     } else {
@@ -649,10 +730,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /* ---------- first-run onboarding ---------- */
 
   const completeOnboarding = useCallback(
-    (answers: OnboardingAnswers | null) => {
+    (answers: OnboardingAnswers | null | 'empty') => {
       const cur = dataRef.current;
       if (!answers) {
         update({ settings: { ...cur.settings, onboarded: true } });
+        return;
+      }
+      // "Start Empty": a clean slate, no questions, no sample data.
+      if (answers === 'empty') {
+        const blank: PersistedState = {
+          ...seedFresh(),
+          settings: { ...cur.settings, onboarded: true, weeklyDay: new Date().getDay() },
+        };
+        epochRef.current += 1;
+        setData(blank);
+        persist(blank);
+        setSelGoal('');
         return;
       }
       const areas = [...new Set(answers.areas.map((a) => a.trim()).filter(Boolean))];
@@ -832,6 +925,109 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [aiAction, provider, context, update],
   );
 
+  /* ---------- social account: read-only, rate-limited ---------- */
+
+  /** Records today's numbers once per day so growth shows over months. */
+  const snapshotSocial = useCallback((p: SocialProfile, prev: PersistedState['socialHistory']) => {
+    const date = todayISO();
+    const entry = { date, followers: p.followers, posts: p.posts, likes: p.likes };
+    const rest = prev.filter((s) => s.date !== date);
+    return [...rest, entry].slice(-1500);
+  }, []);
+
+  const readProfile = useCallback(
+    async (platform: SocialPlatform, handle: string): Promise<SocialProfile> => {
+      const fetcher = window.lifeOS?.socialFetch;
+      if (!fetcher) throw new Error('desktop-only');
+      const res: SocialFetchResult & { handle: string } = await fetcher({ platform, handle });
+      return { ...res, platform, fetchedAt: Date.now() };
+    },
+    [],
+  );
+
+  /** Turns a thrown error into copy that names the actual problem. */
+  const socialFail = useCallback(
+    (e: unknown, platform: SocialPlatform, handle: string) => {
+      if (!window.lifeOS) {
+        fail('Account tracking works in the installed app, not the browser.');
+        return;
+      }
+      const name = platform === 'tiktok' ? 'TikTok' : 'Instagram';
+      const msg = e instanceof Error ? e.message : '';
+      if (msg.startsWith('NOTFOUND:')) {
+        fail(`No public ${name} account called ${handle}.`);
+        return;
+      }
+      if (msg.startsWith('BLOCKED:')) {
+        fail(`${name} turned the request away this time. Try again later.`);
+        return;
+      }
+      fail('Couldn’t reach the platform, try again in a moment.');
+    },
+    [fail],
+  );
+
+  /** Shared read-and-store, so connect and refresh cannot drift apart. */
+  const pullProfile = useCallback(
+    async (platform: SocialPlatform, handle: string): Promise<boolean> => {
+      const clean = handle.trim().replace(/^@+/, '');
+      if (!clean || busyRef.current.social) return false;
+      setBusyFlag('social', true);
+      try {
+        const profile = await readProfile(platform, clean);
+        update({
+          social: profile,
+          socialHistory: snapshotSocial(profile, dataRef.current.socialHistory),
+        });
+        if (profile.avatar) void window.lifeOS?.setAppIcon?.(profile.avatar);
+        return true;
+      } catch (e) {
+        socialFail(e, platform, clean);
+        return false;
+      } finally {
+        setBusyFlag('social', false);
+      }
+    },
+    [readProfile, update, snapshotSocial, socialFail, setBusyFlag],
+  );
+
+  const connectSocial = useCallback(
+    (platform: SocialPlatform, handle: string) => pullProfile(platform, handle),
+    [pullProfile],
+  );
+
+  const refreshSocial = useCallback(() => {
+    const cur = dataRef.current.social;
+    if (!cur) return Promise.resolve(false);
+    // Hard cooldown: rare, human-paced reads keep the account unremarkable.
+    const wait = SOCIAL_COOLDOWN[cur.platform] - (Date.now() - cur.fetchedAt);
+    if (wait > 0) {
+      const hrs = Math.ceil(wait / (60 * 60 * 1000));
+      fail(`Already up to date. Checks again in about ${hrs} ${hrs === 1 ? 'hour' : 'hours'}.`);
+      return Promise.resolve(false);
+    }
+    return pullProfile(cur.platform, cur.handle);
+  }, [pullProfile, fail]);
+
+  /** Erase everything: back to a blank app and the first-run screen. */
+  const wipeAllData = useCallback(() => {
+    const blank: PersistedState = { ...seedFresh(), settings: seedState().settings };
+    epochRef.current += 1;
+    void window.lifeOS?.wipeData?.();
+    void window.lifeOS?.setAppIcon?.('');
+    setData(blank);
+    persist(blank);
+    setSelGoal('');
+    setModule('dashboard');
+    setConnections(null);
+    applyTheme(blank.settings.dark);
+  }, [persist]);
+
+  const disconnectSocial = useCallback(() => {
+    update({ social: null, socialHistory: [] });
+    void window.lifeOS?.setAppIcon?.('');
+  }, [update]);
+
   const updateGoalItem = useCallback(
     (goalId: string, level: CascadeLevel, index: number, text: string) => {
       update({
@@ -994,9 +1190,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     () =>
       aiAction('morning', async () => {
         const out = await provider().complete(prompts.strategistMorning(context()));
-        const parsed = clean(parseJSON<MorningAction[]>(out)).slice(0, 3);
+        const parsed = clean(parseJSON<MorningAction[]>(out))
+          .filter((m) => m && typeof m.action === 'string' && m.action.trim())
+          .slice(0, 3);
         if (!parsed.length) throw new Error('no actions');
-        update({ morning: parsed });
+        update({ morning: parsed, morningDate: todayISO() });
       }),
     [aiAction, provider, context, update],
   );
@@ -1008,7 +1206,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           dataRef.current.topTasks.filter((t) => t.done).map((t) => t.text).join('; ') ||
           'nothing marked done yet';
         const out = clean(await provider().complete(prompts.strategistEvening(context(), done)));
-        update({ eveningText: out });
+        if (!out.trim()) throw new Error('empty debrief');
+        update({ eveningText: out.trim(), eveningDate: todayISO() });
       }),
     [aiAction, provider, context, update],
   );
@@ -1131,6 +1330,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deleteFinanceEntry,
     cycleFinanceKind,
     reviewFinances,
+    connectSocial,
+    refreshSocial,
+    disconnectSocial,
+    wipeAllData,
     forgetMemory,
     clearMemory,
     exportData,

@@ -1,8 +1,17 @@
+import type { CSSProperties } from 'react';
 import { useApp } from '../lib/store';
 import { Card, CardLabel, GhostButton, Num, PageSub, PageTitle } from '../components/ui';
 
+const empty: CSSProperties = {
+  fontSize: 13.5,
+  color: 'var(--muted)',
+  lineHeight: 1.65,
+};
+
 export default function Strategist() {
   const app = useApp();
+  const hasMorning = app.morning.length > 0;
+  const hasEvening = app.eveningText.trim().length > 0;
 
   return (
     <section className="fade-up" style={{ maxWidth: 760 }}>
@@ -25,9 +34,15 @@ export default function Strategist() {
               if (!app.busy.morning) void app.genMorning();
             }}
           >
-            {app.busy.morning ? 'Thinking…' : 'Refresh'}
+            {app.busy.morning ? 'Thinking…' : hasMorning ? 'Refresh' : 'Read my day'}
           </GhostButton>
         </div>
+        {!hasMorning && !app.busy.morning && (
+          <div style={empty}>
+            Nothing yet for today. It reads your goals, tasks, habits, and history, then names the
+            three actions that move you furthest.
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {app.morning.map((m, i) => (
             <div key={i} style={{ display: 'flex', gap: 16 }}>
@@ -61,12 +76,23 @@ export default function Strategist() {
               if (!app.busy.evening) void app.genEvening();
             }}
           >
-            {app.busy.evening ? 'Reviewing…' : 'Run the debrief'}
+            {app.busy.evening ? 'Reviewing…' : hasEvening ? 'Run it again' : 'Run the debrief'}
           </GhostButton>
         </div>
-        <div style={{ fontSize: 14.5, lineHeight: 1.7, color: 'var(--text2)', whiteSpace: 'pre-wrap' }}>
-          {app.eveningText}
-        </div>
+        {hasEvening ? (
+          <div
+            style={{ fontSize: 14.5, lineHeight: 1.7, color: 'var(--text2)', whiteSpace: 'pre-wrap' }}
+          >
+            {app.eveningText}
+          </div>
+        ) : (
+          !app.busy.evening && (
+            <div style={empty}>
+              Nothing yet for today. Run it at day&rsquo;s end: it reads what you finished, what
+              slipped, and reshapes tomorrow.
+            </div>
+          )
+        )}
       </Card>
     </section>
   );

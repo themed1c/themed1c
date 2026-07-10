@@ -1,4 +1,4 @@
-import type { ChatTurn, PersistedState } from './types';
+import type { ChatTurn, PersistedState, SocialFetchResult, SocialPlatform } from './types';
 import { seedState } from './seed';
 
 export interface AICompletePayload {
@@ -25,6 +25,19 @@ interface LifeOSBridge {
   load(): Promise<PersistedState | null>;
   save(patch: Partial<PersistedState>): Promise<void>;
   aiComplete(payload: AICompletePayload): Promise<string>;
+  /** Bring the (possibly tray-hidden) window to the front. */
+  show?(): Promise<void>;
+  /** Recolor the native window-control overlay to match the theme. */
+  setTitlebar?(colors: { color: string; symbolColor: string }): Promise<void>;
+  /** One read of a public social profile, from the main process. */
+  socialFetch?(req: {
+    platform: SocialPlatform;
+    handle: string;
+  }): Promise<SocialFetchResult & { handle: string }>;
+  /** Set the window/tray icon; an empty string restores the default. */
+  setAppIcon?(dataUrl: string): Promise<void>;
+  /** Empty every table in the local database. */
+  wipeData?(): Promise<void>;
 }
 
 declare global {

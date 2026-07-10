@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, animate } from 'motion/react';
 import { FONT_LABEL, FONT_NUM } from '../lib/theme';
 
 /* Shared primitives matching the design tokens. Keep visual values inline so
@@ -7,12 +8,15 @@ import { FONT_LABEL, FONT_NUM } from '../lib/theme';
 export function Card({
   children,
   style,
+  className,
 }: {
   children: React.ReactNode;
   style?: React.CSSProperties;
+  className?: string;
 }) {
   return (
     <div
+      className={className}
       style={{
         background: 'var(--card)',
         border: '1px solid var(--border)',
@@ -92,6 +96,40 @@ export function Num({
     <span style={{ fontFamily: FONT_NUM, fontWeight: 500, fontSize: size, color, ...style }}>
       {children}
     </span>
+  );
+}
+
+/** Oswald numeral that counts up to `value` (from 0 on mount, or from the
+ *  previous value on change). Same look as <Num>; only the transition moves. */
+export function AnimatedNum({
+  value,
+  size = 13,
+  color = 'var(--muted)',
+  suffix = '',
+  style,
+}: {
+  value: number;
+  size?: number;
+  color?: string;
+  suffix?: string;
+  style?: React.CSSProperties;
+}) {
+  const [display, setDisplay] = React.useState(0);
+  const from = React.useRef(0);
+  React.useEffect(() => {
+    const controls = animate(from.current, value, {
+      duration: 0.8,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => setDisplay(v),
+    });
+    from.current = value;
+    return () => controls.stop();
+  }, [value]);
+  return (
+    <Num size={size} color={color} style={style}>
+      {Math.round(display)}
+      {suffix}
+    </Num>
   );
 }
 
@@ -187,10 +225,12 @@ export function Track({
         ...style,
       }}
     >
-      <div
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         style={{
           height: '100%',
-          width: `${Math.max(0, Math.min(100, pct))}%`,
           background: fill,
           borderRadius: height / 2,
         }}

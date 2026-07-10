@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { useApp } from '../lib/store';
 import { AddRow, Card, CardLabel, GhostButton, InlineText, PageTitle, PageSub } from '../components/ui';
+import { confirmDialog, promptDialog } from '../components/dialog';
 import { FONT_BODY, FONT_NUM } from '../lib/theme';
 import { dayName, todayISO } from '../lib/time';
 import type { ProviderKind } from '../lib/types';
@@ -19,6 +20,8 @@ const PROVIDERS: { key: ProviderKind; name: string; sub: string }[] = [
 ];
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
+
+const wipeBtn: CSSProperties = { fontSize: 12.5, padding: '7px 16px', borderRadius: 7 };
 
 export default function Settings() {
   const app = useApp();
@@ -50,7 +53,12 @@ export default function Settings() {
       setDataMsg('That file does not look like a Life Organization backup.');
       return;
     }
-    if (!window.confirm('Restoring replaces everything currently in the app with the backup. Continue?')) {
+    const go = await confirmDialog({
+      title: 'Restore from this backup?',
+      body: 'Everything currently in the app is replaced by the contents of the backup file.',
+      confirmLabel: 'Restore',
+    });
+    if (!go) {
       setDataMsg(null);
       return;
     }
@@ -59,6 +67,32 @@ export default function Settings() {
         ? 'Backup restored.'
         : 'That file does not look like a Life Organization backup.',
     );
+  };
+
+  /* Two gates, because this is the one action nothing can undo: a plain
+   * confirm, then typing the word. */
+  const wipeEverything = async () => {
+    const go = await confirmDialog({
+      title: 'Wipe all data?',
+      body: 'Every goal, task, habit, note, reflection, chat, and setting on this machine is erased, and the app returns to its first-run screen. This cannot be undone.',
+      confirmLabel: 'Continue',
+      danger: true,
+    });
+    if (!go) return;
+
+    const typed = await promptDialog({
+      title: 'Type ERASE to confirm',
+      body: 'This is your last chance to back out. Anything other than ERASE cancels.',
+      placeholder: 'ERASE',
+      requireText: 'ERASE',
+      confirmLabel: 'Erase everything',
+      danger: true,
+    });
+    if (typed?.trim().toUpperCase() !== 'ERASE') {
+      setDataMsg('Nothing was erased.');
+      return;
+    }
+    app.wipeAllData();
   };
 
   return (
@@ -336,6 +370,17 @@ export default function Settings() {
             Everything lives on this machine, inside the browser you use for the app. Save a
             backup file every so often and keep it somewhere safe; restoring one brings back
             everything exactly as it was, on this computer or a new one.
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--line)', marginTop: 20, paddingTop: 18 }}>
+            <button className="danger-btn" onClick={() => void wipeEverything()} style={wipeBtn}>
+              Wipe all data
+            </button>
+            <div style={caption}>
+              Erases every goal, task, habit, note, reflection, chat, and setting on this machine,
+              then returns to the first-run screen. This cannot be undone. Save a backup first if
+              there is any chance you want it back.
+            </div>
           </div>
         </Card>
 

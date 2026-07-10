@@ -36,10 +36,15 @@ export default function Onboarding() {
   const [goalArea, setGoalArea] = useState('');
   const [habitsText, setHabitsText] = useState('');
   const [fresh, setFresh] = useState(false);
+  const [empty, setEmpty] = useState(false);
 
   const parsedAreas = areasText.split(',').map((a) => a.trim()).filter(Boolean).slice(0, 6);
 
   const finish = () => {
+    if (empty) {
+      app.completeOnboarding('empty');
+      return;
+    }
     if (!fresh) {
       app.completeOnboarding(null);
       return;
@@ -56,6 +61,7 @@ export default function Onboarding() {
 
   return (
     <div
+      className="fade-in"
       style={{
         position: 'fixed',
         inset: 0,
@@ -68,17 +74,18 @@ export default function Onboarding() {
         overflowY: 'auto',
       }}
     >
-      <Card style={{ maxWidth: 540, width: '100%', padding: 28 }}>
+      <Card className="fade-up" style={{ maxWidth: 540, width: '100%', padding: 28 }}>
         {step === 'choice' && (
           <>
             <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Life Organization</div>
             <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
               One system for goals, days, habits, money, and review. Set it up for yourself, or
-              keep the sample data to look around first.
+              start empty and fill it in as you go.
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <AccentButton
                 onClick={() => {
+                  setEmpty(false);
                   setFresh(true);
                   setStep('about');
                 }}
@@ -88,11 +95,12 @@ export default function Onboarding() {
               <GhostButton
                 onClick={() => {
                   setFresh(false);
+                  setEmpty(true);
                   setStep('tutorial');
                 }}
                 style={{ padding: '9px 20px', fontSize: 13.5 }}
               >
-                Keep the sample data
+                Start Empty
               </GhostButton>
             </div>
           </>

@@ -52,6 +52,15 @@ export function relativeWhen(ts: number, now = Date.now()): string {
   return `${days}d ago`;
 }
 
+/** "Jul 9 at 2:05 PM" for the last profile read. Always 12-hour. */
+export function stamp(ts: number): string {
+  const d = new Date(ts);
+  const hr = d.getHours();
+  const h12 = hr % 12 === 0 ? 12 : hr % 12;
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${monthDay(ts)} at ${h12}:${mins} ${hr < 12 ? 'AM' : 'PM'}`;
+}
+
 /** Minutes since midnight for a 12-hour time like "6:30 PM"; unparsable
  *  strings sort to the end so hand-typed schedule rows never vanish. */
 export function timeToMinutes(t: string): number {

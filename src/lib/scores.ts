@@ -5,6 +5,15 @@ const clamp = (n: number) => Math.max(0, Math.min(99, Math.round(n)));
 const POSITIVE = /\b(good|great|well|proud|won|finished|focused|energized|calm|progress|best)\b/i;
 const NEGATIVE = /\b(bad|tired|stressed|anxious|failed|behind|distracted|wasted|slipped|late)\b/i;
 
+/** Whether the person has logged anything the score model can read. With
+ *  nothing to read, the UI shows a dash: a number here would be an invention
+ *  dressed up as a measurement. */
+export function hasActivity(
+  s: Pick<PersistedState, 'habits' | 'topTasks' | 'reflections'>,
+): boolean {
+  return s.habits.length > 0 || s.topTasks.length > 0 || s.reflections.length > 0;
+}
+
 /** Area scores = persisted 30-day baselines nudged by live signals: today's
  *  habit adherence, task completion, streak strength, and the sentiment of
  *  recent reflections. Simple by design; the baselines live in the DB so a
@@ -12,6 +21,9 @@ const NEGATIVE = /\b(bad|tired|stressed|anxious|failed|behind|distracted|wasted|
 export function computeAreaScores(
   s: Pick<PersistedState, 'areaScores' | 'habits' | 'topTasks' | 'reflections'>,
 ): AreaScore[] {
+  // No signal, no nudge: leave the baselines untouched rather than drifting
+  // them to numbers that look like findings.
+  if (!hasActivity(s)) return s.areaScores;
   const habitRatio = s.habits.length ? s.habits.filter((h) => h.done).length / s.habits.length : 0;
   const taskRatio = s.topTasks.length ? s.topTasks.filter((t) => t.done).length / s.topTasks.length : 0;
   const bestStreak = s.habits.reduce((m, h) => Math.max(m, h.streak), 0);

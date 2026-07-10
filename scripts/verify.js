@@ -16,6 +16,7 @@ const NAV = [
   ['Roadmaps', 'roadmaps'],
   ['Strategist', 'strategist'],
   ['Finances', 'finance'],
+  ['Accounts', 'social'],
   ['Coach', 'coach'],
   ['Reflection', 'reflect'],
   ['Weekly Review', 'weekly'],
@@ -27,6 +28,64 @@ const results = [];
 const ok = (name, pass, detail = '') => {
   results.push({ name, pass, detail });
   console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${detail ? ' :: ' + detail : ''}`);
+};
+
+/* Test fixture. The app itself ships empty: no sample goals, notes, or habits,
+ * and no canned engine output. This harness supplies the lived-in data the
+ * behavioural checks need. It deliberately contains NO engine output either
+ * (no patterns, weekly review, or strategist advice) so the checks below have
+ * to make the engine actually produce them. */
+const DAY = 86400000;
+const FIXTURE = {
+  topTasks: [
+    { id: 't1', text: 'Finish problem set 6, questions 3-5', area: 'School', done: false },
+    { id: 't2', text: 'Comp the vocal takes before studio time', area: 'Music', done: false },
+    { id: 't3', text: 'Pull day at 6:30 PM, protect it', area: 'Fitness', done: false },
+  ],
+  habits: [
+    { id: 'h1', name: 'Gym: push / pull / legs', streak: 9, done: false, lastDone: null },
+    { id: 'h2', name: '30 min instrument practice', streak: 4, done: false, lastDone: null },
+    { id: 'h3', name: 'Read 20 pages', streak: 2, done: false, lastDone: null },
+    { id: 'h4', name: 'Phone out of reach during study', streak: 6, done: false, lastDone: null },
+  ],
+  schedule: [
+    { id: 's1', time: '9:00 AM', label: 'Lecture: Signals & Systems', tag: 'School' },
+    { id: 's2', time: '11:30 AM', label: 'Study block: problem set 6', tag: 'School' },
+    { id: 's3', time: '6:30 PM', label: 'Gym: pull day', tag: 'Fitness' },
+  ],
+  goals: [
+    {
+      id: 'g1', area: 'Music', title: 'Release a 5-track EP by December', progress: 38,
+      vision: 'Music is a real second career.',
+      year: ['EP released on all platforms'], quarter: ['Finish production on all 5 tracks'],
+      month: ['Lock the arrangement'], week: ['Comp the vocal takes'], today: ['45 min on the bridge'],
+    },
+    {
+      id: 'g2', area: 'School', title: 'Graduate with a 3.7+ GPA', progress: 64,
+      vision: 'Leave school with deep signal-processing skills I actually use.',
+      year: ['3.7+ cumulative GPA'], quarter: ['A- or better in Signals & Systems'],
+      month: ['Problem sets 5-8 on time'], week: ['Finish problem set 6'], today: ['90 min: problem set 6'],
+    },
+  ],
+  projects: [
+    {
+      id: 'p1', name: 'EP: Night Drive', stage: 'Production', pct: 38,
+      phases: ['Writing', 'Production', 'Mixing', 'Master', 'Release'], current: 1, color: '#AFC4E0',
+      fields: [{ k: 'Next milestone', v: 'All stems locked' }, { k: 'Risks', v: 'Scope creep' }],
+    },
+    {
+      id: 'p2', name: 'Senior thesis', stage: 'Research', pct: 22,
+      phases: ['Topic', 'Research', 'Lit review', 'Draft', 'Defend'], current: 1, color: '#B4D6BC',
+      fields: [{ k: 'Next milestone', v: 'Lit review draft' }, { k: 'Risks', v: 'Competing deadlines' }],
+    },
+  ],
+  vault: [
+    { id: 'v1', title: 'EP concept: Night Drive', tag: 'Idea', date: 'Jun 02', snippet: 'Five tracks that map one late drive home.', createdAt: Date.now() - 36 * DAY },
+    { id: 'v2', title: 'Mixing notes: low-end masterclass', tag: 'Notes', date: 'Jun 20', snippet: 'High-pass everything except kick and bass. Mono below 120Hz.', createdAt: Date.now() - 18 * DAY },
+    { id: 'v3', title: 'Money rules', tag: 'Plan', date: 'Jul 01', snippet: 'Automatic transfer every paycheck. Gear only from gig income.', createdAt: Date.now() - 7 * DAY },
+    { id: 'v4', title: 'Thesis direction: audio DSP', tag: 'Research', date: 'Jun 25', snippet: 'Real-time pitch correction artifacts as the thesis angle.', createdAt: Date.now() - 13 * DAY },
+  ],
+  settings: { onboarded: true },
 };
 
 (async () => {
@@ -46,19 +105,52 @@ const ok = (name, pass, detail = '') => {
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(600);
 
-  /* ---- first-run onboarding: keep-the-sample-data path ---- */
-  const sawOnboarding = /Keep the sample data/.test(await page.locator('body').innerText());
+  /* ---- first-run onboarding: the Start Empty path ---- */
+  const sawOnboarding = /Start Empty/.test(await page.locator('body').innerText());
   ok('onboarding shows on first run', sawOnboarding);
-  await page.click('button:has-text("Keep the sample data")');
+  await page.click('button:has-text("Start Empty")');
   await page.waitForTimeout(200);
   ok('tutorial step shows', /How it works/i.test(await page.locator('body').innerText()));
   await page.click('button:has-text("Finish")');
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(500);
+  const emptyDash = await page.locator('main').innerText();
+  ok(
+    'Start Empty clears the sample data',
+    !/problem set|Maya|record store/i.test(emptyDash) && /Add a task/.test(emptyDash),
+  );
+
+  /* The app ships with nothing invented, so the behavioural checks load a
+   * fixture: lived-in user data, but no engine output anywhere. */
+  await page.evaluate((fixture) => {
+    localStorage.clear();
+    localStorage.setItem('life-org-v2', JSON.stringify(fixture));
+  }, FIXTURE);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  ok('fixture data loads for an onboarded install', /problem set/i.test(await page.locator('main').innerText()));
+
+  /* ---- the shipped app invents nothing ---- */
+  const shipped = await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('life-org-v2'));
+    return { patterns: s.patterns, weekly: s.weekly, morning: s.morning, eveningText: s.eveningText };
+  });
+  ok(
+    'no canned engine output in stored state',
+    (shipped.patterns ?? []).length === 0 &&
+      Object.values(shipped.weekly ?? {}).every((v) => (v ?? []).length === 0) &&
+      (shipped.morning ?? []).length === 0 &&
+      !(shipped.eveningText ?? '').trim(),
+  );
 
   const nav = (label) => page.click(`button.nav-item:has-text("${label}")`);
   const shot = async (name) => {
     await page.waitForTimeout(450);
     await page.screenshot({ path: path.join(OUT, name + '.png') });
+  };
+  /* Dialogs are in-app now, not native OS popups. */
+  const confirmDialog = async () => {
+    await page.click('[data-dialog-confirm]');
+    await page.waitForTimeout(350);
   };
 
   /* ---- screenshots, light ---- */
@@ -140,8 +232,9 @@ const ok = (name, pass, detail = '') => {
   const reflOut = await page.locator('main').innerText();
   ok('reflection produced output', /Tonight/i.test(reflOut) && /protect/i.test(reflOut));
 
-  /* ---- weekly rebuild ---- */
+  /* ---- weekly: empty until compiled ---- */
   await nav('Weekly Review');
+  ok('weekly review starts empty', /Nothing compiled yet|Nothing has been compiled/.test(await page.locator('main').innerText()));
   await page.click('button:has-text("Rebuild")');
   await page.waitForTimeout(1600);
   ok('weekly review rendered', /Biggest wins/i.test(await page.locator('main').innerText()));
@@ -157,15 +250,22 @@ const ok = (name, pass, detail = '') => {
   await page.waitForTimeout(1800);
   ok('vault connections appeared', /Threads you/i.test(await page.locator('main').innerText()));
 
-  /* ---- patterns ---- */
+  /* ---- patterns: empty until the engine looks ---- */
   await nav('Patterns');
-  await page.click('button:has-text("Look again")');
+  const patBefore = await page.locator('main').innerText();
+  ok('patterns start empty', /Nothing yet/.test(patBefore) && !/\b01\b/.test(patBefore));
+  await page.click('button:has-text("Look for patterns")');
   await page.waitForTimeout(1600);
   ok('patterns rendered', /01/.test(await page.locator('main').innerText()));
 
-  /* ---- strategist ---- */
+  /* ---- strategist: starts empty, fills only from the engine ---- */
   await nav('Strategist');
-  await page.click('button:has-text("Refresh")');
+  const stratBefore = await page.locator('main').innerText();
+  ok(
+    'strategist starts empty, no canned advice',
+    /Nothing yet for today/.test(stratBefore) && !/01/.test(stratBefore),
+  );
+  await page.click('button:has-text("Read my day")');
   await page.waitForTimeout(1600);
   await page.click('button:has-text("Run the debrief")');
   await page.waitForTimeout(1800);
@@ -194,9 +294,10 @@ const ok = (name, pass, detail = '') => {
   await page.click('button:has-text("+ Add a goal")');
   await page.waitForTimeout(300);
   ok('goal added', /New goal/.test(await page.locator('main').innerText()));
-  page.once('dialog', (d) => d.accept());
-  await page.click('button:has-text("Remove")');
-  await page.waitForTimeout(300);
+  await page.click('button:has-text("Remove goal")');
+  await page.waitForTimeout(250);
+  ok('themed confirm dialog opens', await page.locator('.dialog-panel').isVisible());
+  await confirmDialog();
   ok('goal removed', !/New goal/.test(await page.locator('main').innerText()));
 
   await nav('Roadmaps');
@@ -281,9 +382,10 @@ const ok = (name, pass, detail = '') => {
   await download.saveAs(bkPath);
   const bkOk = fs.existsSync(bkPath) && fs.statSync(bkPath).size > 500;
   ok('backup file downloads', bkOk, bkOk ? `${fs.statSync(bkPath).size} bytes` : 'missing');
-  page.once('dialog', (d) => d.accept());
   await page.setInputFiles('input[type="file"]', bkPath);
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(400);
+  await confirmDialog();
+  await page.waitForTimeout(400);
   ok('backup restores', /Backup restored/.test(await page.locator('main').innerText()));
 
   /* ---- live data file: stub the OS picker, confirm the mirror writes ---- */
@@ -360,7 +462,7 @@ const ok = (name, pass, detail = '') => {
   await page.waitForTimeout(800);
   ok(
     'existing data skips onboarding',
-    !/Keep the sample data/.test(await page.locator('body').innerText()),
+    !/Start Empty/.test(await page.locator('body').innerText()),
   );
 
   /* ---- fresh onboarding path: questions in, sample data out ---- */

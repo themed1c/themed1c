@@ -1,6 +1,7 @@
 import React from 'react';
 import { AppProvider, useApp, type ModuleKey } from './lib/store';
 import { Toast } from './components/ui';
+import { DialogHost } from './components/dialog';
 import { FONT_LABEL, FONT_NUM } from './lib/theme';
 import { dateShort } from './lib/time';
 import Dashboard from './modules/Dashboard';
@@ -15,7 +16,11 @@ import Vault from './modules/Vault';
 import Patterns from './modules/Patterns';
 import SettingsModule from './modules/Settings';
 import Finances from './modules/Finances';
+import Social from './modules/Social';
 import Onboarding from './modules/Onboarding';
+
+/** The desktop shell hides the native title bar and draws its own. */
+const isDesktop = typeof window !== 'undefined' && !!window.lifeOS;
 
 const NAV_GROUPS: { label: string; items: { key: ModuleKey; label: string }[] }[] = [
   { label: 'Overview', items: [{ key: 'dashboard', label: 'Life Dashboard' }] },
@@ -33,6 +38,7 @@ const NAV_GROUPS: { label: string; items: { key: ModuleKey; label: string }[] }[
       { key: 'roadmaps', label: 'Roadmaps' },
       { key: 'strategist', label: 'Strategist' },
       { key: 'finance', label: 'Finances' },
+      { key: 'social', label: 'Accounts' },
     ],
   },
   {
@@ -55,6 +61,7 @@ const MODULES: Record<ModuleKey, React.ComponentType> = {
   roadmaps: Roadmaps,
   strategist: Strategist,
   finance: Finances,
+  social: Social,
   coach: Coach,
   reflect: Reflection,
   weekly: WeeklyReview,
@@ -78,7 +85,20 @@ function Sidebar() {
       }}
     >
       <div style={{ padding: '4px 12px 6px' }}>
-        <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '0.01em' }}>Life Organization</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          {app.social?.avatar && (
+            <img
+              src={app.social.avatar}
+              alt=""
+              width={22}
+              height={22}
+              style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+            />
+          )}
+          <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '0.01em' }}>
+            Life Organization
+          </div>
+        </div>
         <div
           style={{
             fontFamily: FONT_NUM,
@@ -165,13 +185,24 @@ function Main() {
   const app = useApp();
   const Module = MODULES[app.module];
   return (
-    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
-      <Sidebar />
-      <main className="main-pad">
-        <div style={{ maxWidth: 1060, margin: '0 auto', height: '100%' }}>
-          {app.hydrated ? <Module key={app.module} /> : null}
-        </div>
-      </main>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        background: 'var(--bg)',
+        overflow: 'hidden',
+      }}
+    >
+      {isDesktop && <div className="titlebar">Life Organization</div>}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <Sidebar />
+        <main className="main-pad">
+          <div style={{ maxWidth: 1060, margin: '0 auto', height: '100%' }}>
+            {app.hydrated ? <Module key={app.module} /> : null}
+          </div>
+        </main>
+      </div>
       {app.hydrated && !app.settings.onboarded && <Onboarding />}
       {app.hydrated && app.dataFileStatus === 'reconnect' && (
         <div
@@ -203,6 +234,7 @@ function Main() {
         </div>
       )}
       <Toast message={app.err} />
+      <DialogHost />
     </div>
   );
 }

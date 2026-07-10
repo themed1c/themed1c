@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useApp } from '../lib/store';
 import {
-  AddRow, Card, CardLabel, CheckSquare, Chip, GhostButton, InlineText, Num, Track,
+  AddRow, AnimatedNum, Card, CardLabel, CheckSquare, Chip, GhostButton, InlineText, Num, Track,
 } from '../components/ui';
+import { confirmDialog } from '../components/dialog';
 import { FONT_LABEL, FONT_NUM } from '../lib/theme';
 import { dateLong, greeting } from '../lib/time';
-import { computeAreaScores, focusScore } from '../lib/scores';
+import { computeAreaScores, focusScore, hasActivity } from '../lib/scores';
 import { PASTELS } from '../lib/seed';
 
 export default function Dashboard() {
@@ -16,6 +17,8 @@ export default function Dashboard() {
   const areas = computeAreaScores(app);
   const score = focusScore(app);
   const habitsDone = app.habits.filter((h) => h.done).length;
+  // Nothing logged yet: show a dash, not a formula's starting constant.
+  const scored = hasActivity(app);
 
   return (
     <section className="fade-up">
@@ -48,9 +51,13 @@ export default function Dashboard() {
               Focus score
             </CardLabel>
             <div style={{ marginTop: 2 }}>
-              <Num size={26} color="var(--accent)">
-                {score}
-              </Num>
+              {scored ? (
+                <AnimatedNum value={score} size={26} color="var(--accent)" />
+              ) : (
+                <Num size={26} color="var(--faint)">
+                  {'-'}
+                </Num>
+              )}
             </div>
           </div>
           <div>
@@ -103,21 +110,27 @@ export default function Dashboard() {
                   <span
                     style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0 }}
                   >
-                    <Num size={13} color="var(--text2)">
-                      {a.score}
-                    </Num>
-                    <Num
-                      size={10.5}
-                      color={
-                        a.trend > 0
-                          ? 'var(--trend-up)'
-                          : a.trend < 0
-                            ? 'var(--trend-down)'
-                            : 'var(--faint)'
-                      }
-                    >
-                      {a.trend > 0 ? `+${a.trend}` : String(a.trend)}
-                    </Num>
+                    {scored ? (
+                      <AnimatedNum value={a.score} size={13} color="var(--text2)" />
+                    ) : (
+                      <Num size={13} color="var(--faint)">
+                        {'-'}
+                      </Num>
+                    )}
+                    {scored && (
+                      <Num
+                        size={10.5}
+                        color={
+                          a.trend > 0
+                            ? 'var(--trend-up)'
+                            : a.trend < 0
+                              ? 'var(--trend-down)'
+                              : 'var(--faint)'
+                        }
+                      >
+                        {a.trend > 0 ? `+${a.trend}` : String(a.trend)}
+                      </Num>
+                    )}
                     <button
                       className="row-x"
                       title="Remove area"
@@ -129,7 +142,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <Track
-                  pct={a.score}
+                  pct={scored ? a.score : 0}
                   height={10}
                   fill={`linear-gradient(to right, ${pastel[0]}, ${pastel[1]})`}
                 />
@@ -341,6 +354,11 @@ export default function Dashboard() {
 
           <Card>
             <CardLabel style={{ marginBottom: 14 }}>Progress toward goals</CardLabel>
+            {app.goals.length === 0 && (
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                No goals yet. Add one in Goal Center and its progress shows here.
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {app.goals.map((g) => (
                 <div key={g.id}>
@@ -353,9 +371,7 @@ export default function Dashboard() {
                     }}
                   >
                     <span style={{ color: 'var(--text2)' }}>{g.title}</span>
-                    <Num size={12} color="var(--muted)">
-                      {g.progress}%
-                    </Num>
+                    <AnimatedNum value={g.progress} suffix="%" size={12} color="var(--muted)" />
                   </div>
                   <Track pct={g.progress} height={5} />
                 </div>
@@ -390,9 +406,14 @@ export default function Dashboard() {
                     title="Remove habit"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (window.confirm(`Remove "${h.name}"? Its streak goes with it.`)) {
-                        app.deleteHabit(h.id);
-                      }
+                      void confirmDialog({
+                        title: `Remove "${h.name}"?`,
+                        body: 'Its streak goes with it. This cannot be undone.',
+                        confirmLabel: 'Remove habit',
+                        danger: true,
+                      }).then((yes) => {
+                        if (yes) app.deleteHabit(h.id);
+                      });
                     }}
                   >
                     ×
@@ -409,6 +430,11 @@ export default function Dashboard() {
 
           <Card>
             <CardLabel style={{ marginBottom: 12 }}>Active projects</CardLabel>
+            {app.projects.length === 0 && (
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                No projects yet. Add one in Roadmaps.
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {app.projects.map((p) => (
                 <div key={p.id}>

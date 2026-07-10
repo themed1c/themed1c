@@ -15,6 +15,7 @@ export default function WeeklyReview() {
     { h: 'Progress', items: app.weekly.progress, hColor: 'var(--muted)' },
     { h: 'Recommended changes', items: app.weekly.changes, hColor: 'var(--accent)' },
   ];
+  const hasReview = sections.some((s) => s.items.length > 0);
 
   return (
     <section className="fade-up">
@@ -39,11 +40,21 @@ export default function WeeklyReview() {
       {!openToday && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6 }}>
-            The review compiles on {dayName(app.settings.weeklyDay)}. Below is the last one.
-            Change the day in Settings.
+            The review compiles on {dayName(app.settings.weeklyDay)}.
+            {hasReview ? ' Below is the last one.' : ' Nothing has been compiled yet.'} Change the
+            day in Settings.
           </div>
         </Card>
       )}
+      {openToday && !hasReview && !app.busy.weekly && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.65 }}>
+            Nothing compiled yet. It reads this week&rsquo;s tasks, habits, reflections, and
+            progress, then writes the review from them.
+          </div>
+        </Card>
+      )}
+      {hasReview && (
       <div className="grid-2">
         {sections.map((w) => (
           <Card key={w.h}>
@@ -70,6 +81,7 @@ export default function WeeklyReview() {
           </Card>
         ))}
       </div>
+      )}
     </section>
   );
 }

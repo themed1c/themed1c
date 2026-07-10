@@ -1,5 +1,11 @@
 export function applyTheme(dark: boolean): void {
   document.documentElement.classList.toggle('dark', dark);
+  // Desktop app: keep the native window controls on theme colors too.
+  void window.lifeOS?.setTitlebar?.(
+    dark
+      ? { color: '#2B2B2F', symbolColor: '#BCBCC3' }
+      : { color: '#FDFCF9', symbolColor: '#7E7663' },
+  );
   try {
     localStorage.setItem('life-org-theme', dark ? 'dark' : 'light');
   } catch {

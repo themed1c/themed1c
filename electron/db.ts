@@ -26,7 +26,15 @@ function mondayISO(): string {
 export interface DBHandle {
   load(): Row | null;
   save(patch: Row): void;
+  /** Empties every table. The renderer writes a blank state straight after. */
+  wipe(): void;
 }
+
+const ALL_TABLES = [
+  'entries', 'goals', 'goal_levels', 'tasks', 'schedule', 'habits', 'habit_logs',
+  'projects', 'milestones', 'area_scores', 'vault_notes', 'chat_messages',
+  'patterns', 'weekly_reviews', 'reflections', 'kv',
+] as const;
 
 export function openDatabase(userDataDir: string): DBHandle {
   fs.mkdirSync(userDataDir, { recursive: true });
@@ -193,11 +201,15 @@ export function openDatabase(userDataDir: string): DBHandle {
         date: r.date, answers: JSON.parse(r.answers_json as string), output: r.output,
       })),
       morning: getKV('morning') ?? [],
+      morningDate: getKV('morningDate') ?? '',
       eveningText: getKV('eveningText') ?? '',
+      eveningDate: getKV('eveningDate') ?? '',
       memory: getKV('memory') ?? [],
       history: getKV('history') ?? [],
       finance: getKV('finance') ?? [],
       financeRead: getKV('financeRead') ?? '',
+      social: getKV('social') ?? null,
+      socialHistory: getKV('socialHistory') ?? [],
       chatSummary: getKV('chatSummary') ?? '',
       chatSummarized: getKV('chatSummarized') ?? 0,
       settings: getKV('settings') ?? {},
@@ -329,11 +341,15 @@ export function openDatabase(userDataDir: string): DBHandle {
         );
       }
       if (patch.morning) setKV('morning', patch.morning);
+      if (patch.morningDate !== undefined) setKV('morningDate', patch.morningDate);
       if (patch.eveningText !== undefined) setKV('eveningText', patch.eveningText);
+      if (patch.eveningDate !== undefined) setKV('eveningDate', patch.eveningDate);
       if (patch.memory) setKV('memory', patch.memory);
       if (patch.history) setKV('history', patch.history);
       if (patch.finance) setKV('finance', patch.finance);
       if (patch.financeRead !== undefined) setKV('financeRead', patch.financeRead);
+      if (patch.social !== undefined) setKV('social', patch.social);
+      if (patch.socialHistory) setKV('socialHistory', patch.socialHistory);
       if (patch.chatSummary !== undefined) setKV('chatSummary', patch.chatSummary);
       if (patch.chatSummarized !== undefined) setKV('chatSummarized', patch.chatSummarized);
       if (patch.settings) setKV('settings', patch.settings);
@@ -345,5 +361,16 @@ export function openDatabase(userDataDir: string): DBHandle {
     }
   }
 
-  return { load, save };
+  function wipe(): void {
+    db.exec('BEGIN');
+    try {
+      for (const t of ALL_TABLES) db.prepare(`DELETE FROM ${t}`).run();
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+  }
+
+  return { load, save, wipe };
 }

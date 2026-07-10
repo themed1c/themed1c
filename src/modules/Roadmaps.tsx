@@ -1,5 +1,6 @@
 import { useApp } from '../lib/store';
 import { Card, CardLabel, GhostButton, InlineText, Num, PageSub, PageTitle } from '../components/ui';
+import { confirmDialog } from '../components/dialog';
 import { FONT_LABEL, FONT_NUM } from '../lib/theme';
 import type { Project } from '../lib/types';
 
@@ -102,6 +103,14 @@ export default function Roadmaps() {
       <PageSub>
         Where every project stands, and what's in its way. Click any detail to change it.
       </PageSub>
+      {app.projects.length === 0 && (
+        <div
+          style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 16, maxWidth: 620 }}
+        >
+          No projects yet. Add one and it gets a milestone map, a current phase, and the details
+          you fill in.
+        </div>
+      )}
       <div className="grid-2">
         {app.projects.map((p) => (
           <Card key={p.id}>
@@ -164,7 +173,14 @@ export default function Roadmaps() {
                   className="row-x"
                   title="Remove project"
                   onClick={() => {
-                    if (window.confirm(`Remove the project "${p.name}"?`)) app.deleteProject(p.id);
+                    void confirmDialog({
+                      title: `Remove the project "${p.name}"?`,
+                      body: 'Its phases and details go with it. This cannot be undone.',
+                      confirmLabel: 'Remove project',
+                      danger: true,
+                    }).then((yes) => {
+                      if (yes) app.deleteProject(p.id);
+                    });
                   }}
                 >
                   ×

@@ -66,6 +66,19 @@ export default function Vault() {
         {filtered.length} of {app.vault.length} entries
       </div>
 
+      {app.vault.length === 0 && (
+        <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.65, maxWidth: 620 }}>
+          Nothing yet. Everything you write in Brain Dump, and every reflection you save, is filed
+          here automatically.
+        </div>
+      )}
+
+      {app.vault.length > 0 && filtered.length === 0 && (
+        <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.65 }}>
+          No entry matches that search.
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.map((v) => (
           <div

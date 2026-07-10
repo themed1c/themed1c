@@ -144,6 +144,37 @@ export interface HistoryDay {
   reflected: boolean;
 }
 
+export type SocialPlatform = 'instagram' | 'tiktok';
+
+/** What one public-profile read returns from the main process. */
+export interface SocialFetchResult {
+  displayName: string;
+  bio: string;
+  /** Profile picture as a data URL; empty when unavailable. */
+  avatar: string;
+  followers: number;
+  following: number | null;
+  posts: number;
+  /** Total likes (TikTok hearts); null where the platform has no such count. */
+  likes: number | null;
+}
+
+/** The one connected account. Read-only by design: the app never signs in,
+ *  never posts, and reads the public profile at most a few times a day. */
+export interface SocialProfile extends SocialFetchResult {
+  platform: SocialPlatform;
+  handle: string;
+  fetchedAt: number; // epoch ms of the last successful read
+}
+
+/** One day's numbers, kept so growth is visible over months. */
+export interface SocialSnapshot {
+  date: string; // yyyy-mm-dd, local
+  followers: number;
+  posts: number;
+  likes: number | null;
+}
+
 export type ProviderKind = 'stub' | 'anthropic' | 'openai';
 
 export interface Settings {
@@ -163,6 +194,8 @@ export interface Settings {
   weeklyDay: number;
   /** Installed desktop app: keep running in the tray when the window closes. */
   runInBackground: boolean;
+  /** Local date the weekly-review notification last fired (once per day). */
+  lastWeeklyNotice: string;
   /** User-defined goal/task areas, in cycle order. */
   areas: Area[];
 }
@@ -184,7 +217,12 @@ export interface PersistedState {
   /** Reflections stored by date, newest first. */
   reflections: Reflection[];
   morning: MorningAction[];
+  /** Local date the morning actions were generated for; stale ones are
+   *  dropped rather than passed off as today's advice. */
+  morningDate: string;
   eveningText: string;
+  /** Local date the evening debrief was generated for. */
+  eveningDate: string;
   /** Durable preferences the engine learns quietly from reflections and coach
    *  chats, newest understanding as one flat list. Fed into every prompt. */
   memory: string[];
@@ -194,6 +232,10 @@ export interface PersistedState {
   finance: FinanceEntry[];
   /** Latest engine read on the money picture. */
   financeRead: string;
+  /** The connected social account, or null when none is connected. */
+  social: SocialProfile | null;
+  /** Daily snapshots of the connected account's numbers, ascending by date. */
+  socialHistory: SocialSnapshot[];
   /** Running condensation of coach messages older than the live window. */
   chatSummary: string;
   /** How many messages at the start of `chat` the summary already covers. */

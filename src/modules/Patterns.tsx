@@ -22,9 +22,16 @@ export default function Patterns() {
           </PageSub>
         </div>
         <GhostButton onClick={() => void app.genPatterns()}>
-          {app.busy.patterns ? 'Looking…' : 'Look again'}
+          {app.busy.patterns ? 'Looking…' : app.patterns.length ? 'Look again' : 'Look for patterns'}
         </GhostButton>
       </div>
+
+      {app.patterns.length === 0 && !app.busy.patterns && (
+        <div style={{ fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.65, maxWidth: 620 }}>
+          Nothing yet. Patterns are read out of what you have actually logged, so capture a few
+          days of tasks, habits, and reflections first, then look.
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {app.patterns.map((text, i) => (
