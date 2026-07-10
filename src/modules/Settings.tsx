@@ -14,7 +14,7 @@ const caption: CSSProperties = {
 };
 
 const PROVIDERS: { key: ProviderKind; name: string; sub: string }[] = [
-  { key: 'stub', name: 'Built-in (offline)', sub: 'Canned coaching, no key needed.' },
+  { key: 'stub', name: 'Offline', sub: 'No key. Brain dump still sorts itself; everything else waits for an engine.' },
   { key: 'anthropic', name: 'Anthropic API', sub: 'Live engine, needs an API key.' },
   { key: 'openai', name: 'OpenAI API', sub: 'Live engine from ChatGPT’s maker, needs an API key.' },
 ];
@@ -36,7 +36,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `life-organization-backup-${todayISO()}.json`;
+    a.download = `life-org-backup-${todayISO()}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setDataMsg('Backup saved to your downloads.');
@@ -50,7 +50,7 @@ export default function Settings() {
       /* handled below */
     }
     if (!parsed || typeof parsed !== 'object') {
-      setDataMsg('That file does not look like a Life Organization backup.');
+      setDataMsg('That file does not look like a Life.Org backup.');
       return;
     }
     const go = await confirmDialog({
@@ -65,7 +65,7 @@ export default function Settings() {
     setDataMsg(
       app.importData(parsed)
         ? 'Backup restored.'
-        : 'That file does not look like a Life Organization backup.',
+        : 'That file does not look like a Life.Org backup.',
     );
   };
 

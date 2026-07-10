@@ -368,8 +368,8 @@ export async function connectDataFile(current: PersistedState): Promise<boolean>
   if (!window.showSaveFilePicker) return false;
   try {
     const handle = await window.showSaveFilePicker({
-      suggestedName: 'Life Organization Data.json',
-      types: [{ description: 'Life Organization data', accept: { 'application/json': ['.json'] } }],
+      suggestedName: 'Life.Org Data.json',
+      types: [{ description: 'Life.Org data', accept: { 'application/json': ['.json'] } }],
     });
     dataFile = handle;
     dataFilePerm = 'granted';

@@ -4,6 +4,7 @@ import {
   AccentButton, AnimatedNum, Card, CardLabel, GhostButton, Num, PageSub, PageTitle,
 } from '../components/ui';
 import { confirmDialog } from '../components/dialog';
+import FollowerChart from '../components/FollowerChart';
 import { stamp } from '../lib/time';
 import type { SocialPlatform } from '../lib/types';
 
@@ -65,7 +66,7 @@ export default function Social() {
 
   return (
     <section className="fade-up" style={{ maxWidth: 760 }}>
-      <PageTitle>Accounts</PageTitle>
+      <PageTitle>Socials</PageTitle>
       <PageSub>
         Track one public account&rsquo;s numbers over time. It only ever reads, never posts, and
         checks rarely on purpose.
@@ -205,6 +206,13 @@ export default function Social() {
             </div>
           </Card>
 
+          {history.length >= 2 && (
+            <Card style={{ marginBottom: 16 }}>
+              <CardLabel style={{ marginBottom: 14 }}>Followers over time</CardLabel>
+              <FollowerChart history={history} />
+            </Card>
+          )}
+
           <Card>
             <CardLabel style={{ marginBottom: 14 }}>Since you connected</CardLabel>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
@@ -222,6 +230,7 @@ export default function Social() {
                 {history.length}
               </Num>{' '}
               {history.length === 1 ? 'day' : 'days'}. Last read {stamp(s.fetchedAt)}.
+              {history.length < 2 && ' The follower graph starts once a second day of numbers exists.'}
               {nextCheck > 0 && (
                 <>
                   {' '}

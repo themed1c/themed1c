@@ -38,7 +38,7 @@ const NAV_GROUPS: { label: string; items: { key: ModuleKey; label: string }[] }[
       { key: 'roadmaps', label: 'Roadmaps' },
       { key: 'strategist', label: 'Strategist' },
       { key: 'finance', label: 'Finances' },
-      { key: 'social', label: 'Accounts' },
+      { key: 'social', label: 'Socials' },
     ],
   },
   {
@@ -96,7 +96,7 @@ function Sidebar() {
             />
           )}
           <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '0.01em' }}>
-            Life Organization
+            Life.Org
           </div>
         </div>
         <div
@@ -194,7 +194,7 @@ function Main() {
         overflow: 'hidden',
       }}
     >
-      {isDesktop && <div className="titlebar">Life Organization</div>}
+      {isDesktop && <div className="titlebar">Life.Org</div>}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <Sidebar />
         <main className="main-pad">

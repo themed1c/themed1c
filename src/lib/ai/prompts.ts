@@ -33,6 +33,7 @@ export function buildContext(s: {
   history: HistoryDay[];
   finance: FinanceEntry[];
   reflections: Reflection[];
+  vault: VaultNote[];
   settings: Settings;
 }): string {
   const about = s.settings.aboutMe.trim()
@@ -58,7 +59,13 @@ export function buildContext(s: {
           last.output ? `\nThe read they got back: ${last.output.slice(0, 300)}` : ''
         }`
       : '';
-  return `You are the quiet engine inside a personal life-organization system. ${about} Never mention being an AI. Write like a senior advisor: professional, blunt, and logical. Conclusion first, then the reasons. No pleasantries, no cheerleading, no filler. Be concrete and cite their real data.\n\nGOALS:\n${g}\n\nTODAY'S TOP TASKS:\n${t}\n\nHABITS:\n${h}\n\nRECENT BRAIN DUMP:\n${d}\n\nOBSERVED PATTERNS:\n${p}${mem}${historyContext(s.history)}${financeContext(s.finance)}${refl}\n\nNever use an em dash in any response; use commas, colons, or periods instead.`;
+  const vault = s.vault.length
+    ? `\n\nKNOWLEDGE VAULT (recent notes they have filed):\n${s.vault
+        .slice(0, 10)
+        .map((n) => `- [${n.tag}] ${n.title} (${n.date}): ${n.snippet.slice(0, 140)}`)
+        .join('\n')}`
+    : '';
+  return `You are the quiet engine inside a personal life-organization system. ${about} Never mention being an AI. Write like a senior advisor: professional, blunt, and logical. Conclusion first, then the reasons. No pleasantries, no cheerleading, no filler. Be concrete and cite their real data.\n\nGOALS:\n${g}\n\nTODAY'S TOP TASKS:\n${t}\n\nHABITS:\n${h}\n\nRECENT BRAIN DUMP:\n${d}\n\nOBSERVED PATTERNS:\n${p}${mem}${historyContext(s.history)}${financeContext(s.finance)}${refl}${vault}\n\nNever use an em dash in any response; use commas, colons, or periods instead.`;
 }
 
 export const REFLECTION_QUESTIONS = [

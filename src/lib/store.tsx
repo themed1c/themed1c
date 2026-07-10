@@ -12,7 +12,7 @@ import {
 } from './backend';
 import { confirmDialog } from '../components/dialog';
 import { PASTELS, seedFresh, seedState } from './seed';
-import { AnthropicProvider, OpenAIProvider, StubProvider } from './ai/provider';
+import { AnthropicProvider, OpenAIProvider, StubProvider, isNoEngine } from './ai/provider';
 import { buildContext, prompts, scheduleSummary } from './ai/prompts';
 import { applyTheme } from './theme';
 import { monthDay, timeToMinutes, todayISO } from './time';
@@ -326,12 +326,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (s.provider === 'openai' && s.openaiApiKey) {
       return new OpenAIProvider(backend, () => dataRef.current.settings);
     }
+    // A saved key wins over a stale "offline" selection: if a key exists, the
+    // engine is meant to be on, so use it rather than refusing.
+    if (s.apiKey) return new AnthropicProvider(backend, () => dataRef.current.settings);
+    if (s.openaiApiKey) return new OpenAIProvider(backend, () => dataRef.current.settings);
     return stub;
   }, []);
 
   const context = useCallback(() => buildContext(dataRef.current), []);
 
-  /** Wraps an AI action with its busy flag and the error toast. */
+  /** Wraps an AI action with its busy flag and the error toast. A missing
+   *  key is named plainly; the app never covers for it with invented output. */
   const aiAction = useCallback(
     async (key: BusyKey, run: () => Promise<void>): Promise<boolean> => {
       if (busyRef.current[key]) return false;
@@ -339,8 +344,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         await run();
         return true;
-      } catch {
-        fail();
+      } catch (e) {
+        fail(
+          isNoEngine(e)
+            ? 'This needs the engine. Connect an API key in Settings, then run it again.'
+            : undefined,
+        );
         return false;
       } finally {
         setBusyFlag(key, false);
@@ -1145,10 +1154,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const submitReflection = useCallback(
     (answers: [string, string, string, string, string]) =>
       aiAction('reflect', async () => {
-        const out = clean(await provider().complete(prompts.reflection(context(), answers)));
+        // The reflection itself is the user's data and saves either way; only
+        // the read back requires the engine.
+        let out = '';
+        try {
+          out = clean(await provider().complete(prompts.reflection(context(), answers)));
+        } catch (e) {
+          if (!isNoEngine(e)) throw e;
+        }
         const d = dataRef.current;
         const today = todayISO();
-        const entry: Reflection = { date: today, answers, output: out };
+        const entry: Reflection = { date: today, answers, output: out.trim() || null };
         const reflections = [entry, ...d.reflections.filter((r) => r.date !== today)];
         // Reflections are indexed in the vault as journal entries.
         const journal = {

@@ -244,7 +244,7 @@ function createWindow() {
     height: 700,
     minWidth: 680,
     minHeight: 540,
-    title: 'Life Organization',
+    title: 'Life.Org',
     backgroundColor: '#FDFCF9',
     icon: defaultIcon(),
     // Custom title bar: the app draws its own slim bar; the OS window
@@ -293,7 +293,7 @@ function showWindow() {
 
 function createTray() {
   tray = new Tray(defaultIcon().resize({ width: 16, height: 16 }));
-  tray.setToolTip('Life Organization');
+  tray.setToolTip('Life.Org');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Open', click: showWindow },
@@ -310,9 +310,31 @@ function createTray() {
   tray.on('click', showWindow);
 }
 
+/** The app used to be named "Life Organization"; the rename to Life.Org moved
+ *  the userData directory. Anyone upgrading has their database in the old
+ *  folder, so the first launch under the new name carries it across. */
+function migrateOldUserData(userData: string) {
+  try {
+    const newDb = path.join(userData, 'life-org.db');
+    if (fs.existsSync(newDb)) return;
+    const oldDir = path.join(path.dirname(userData), 'Life Organization');
+    const oldDb = path.join(oldDir, 'life-org.db');
+    if (!fs.existsSync(oldDb)) return;
+    fs.mkdirSync(userData, { recursive: true });
+    // WAL sidecars hold writes not yet folded into the main file.
+    for (const suffix of ['', '-wal', '-shm']) {
+      const from = oldDb + suffix;
+      if (fs.existsSync(from)) fs.copyFileSync(from, newDb + suffix);
+    }
+  } catch {
+    /* a failed migration starts fresh rather than blocking launch */
+  }
+}
+
 app.whenReady().then(() => {
   // Windows toast notifications need a stable app identity.
   app.setAppUserModelId('com.lifeorganization.app');
+  migrateOldUserData(app.getPath('userData'));
   db = openDatabase(app.getPath('userData'));
   try {
     const stored = db.load() as { settings?: { runInBackground?: boolean } } | null;

@@ -77,7 +77,7 @@ export default function Onboarding() {
       <Card className="fade-up" style={{ maxWidth: 540, width: '100%', padding: 28 }}>
         {step === 'choice' && (
           <>
-            <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Life Organization</div>
+            <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Life.Org</div>
             <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
               One system for goals, days, habits, money, and review. Set it up for yourself, or
               start empty and fill it in as you go.

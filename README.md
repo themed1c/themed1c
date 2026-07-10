@@ -1,4 +1,4 @@
-# Life Organization
+# Life.Org
 
 A personal Life OS: capture unstructured thoughts, decompose goals into daily action, track projects, habits and life-area health, and reflect daily and weekly, with an engine woven invisibly through everything (classification, planning, coaching, pattern detection, review generation).
 
@@ -15,7 +15,7 @@ npm install     # one time, downloads dependencies
 npm start       # builds and opens the desktop app
 ```
 
-That's it. On first run the app asks a few setup questions (or keeps the sample data if you just want to look around) and shows a brief tutorial. Every feature (brain-dump sorting, replanning, the coach, reflections, weekly review, patterns, the finance read) runs against a built-in offline engine until you connect a real one.
+That's it. On first run the app asks a few setup questions (or lets you start empty) and shows a brief tutorial. Offline, only brain-dump sorting works (it is a local heuristic over your own words); every feature that writes observations about your life (replanning, the coach, reflections' read-back, weekly review, patterns, the finance read) requires a connected engine and refuses to invent output without one.
 
 ### Installers
 
@@ -37,9 +37,11 @@ After every reflection and coach conversation, the engine quietly updates a shor
 
 Everything is stored in a single SQLite file on your machine (no cloud, no accounts):
 
-- **macOS**: `~/Library/Application Support/life-organization/life-org.db`
-- **Windows**: `%APPDATA%/life-organization/life-org.db`
-- **Linux**: `~/.config/life-organization/life-org.db`
+- **macOS**: `~/Library/Application Support/Life.Org/life-org.db`
+- **Windows**: `%APPDATA%/Life.Org/life-org.db`
+- **Linux**: `~/.config/Life.Org/life-org.db`
+
+(Installs that predate the rename kept their data in a `Life Organization` folder next to it; the app migrates the database across automatically on first launch under the new name.)
 
 Back that file up and you've backed up your life system.
 
@@ -56,6 +58,7 @@ In browser mode (the portable single-file build or `npm run dev`), data lives in
 | **Roadmaps** | Project cards with milestone maps, dependencies, and risks |
 | **Strategist** | Morning highest-impact actions and the evening debrief |
 | **Finances** | Hand-logged income, spending, and savings, with an engine read: position, biggest lever, and investment directions to research |
+| **Socials** | Track one public Instagram or TikTok account read-only, with a follower graph over time |
 | **Coach** | A chat that knows everything you've written; persistent across sessions |
 | **Reflection** | Five honest questions each evening; the engine reads them back to you |
 | **Weekly Review** | Wins, failures, habits, time, progress, and recommended changes |

@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-const GOLD = [0xb0, 0x7f, 0x2c];
+// Brighter, warmer orange than the original muted gold (#B07F2C).
+const GOLD = [0xe0, 0x8a, 0x33];
 const CREAM = [0xfd, 0xfc, 0xf9];
 
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);

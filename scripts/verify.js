@@ -16,7 +16,7 @@ const NAV = [
   ['Roadmaps', 'roadmaps'],
   ['Strategist', 'strategist'],
   ['Finances', 'finance'],
-  ['Accounts', 'social'],
+  ['Socials', 'social'],
   ['Coach', 'coach'],
   ['Reflection', 'reflect'],
   ['Weekly Review', 'weekly'],

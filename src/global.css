@@ -430,6 +430,29 @@ select {
   border-top: 2px solid var(--accent) !important;
 }
 
+/* Goal cascade rows: quiet until hovered, then the affordances show */
+.cascade-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 8px;
+  margin-left: -8px;
+  border-radius: 7px;
+}
+
+.cascade-row:hover {
+  background: var(--hover-tint);
+}
+
+.cascade-row .row-x {
+  opacity: 0;
+}
+
+.cascade-row:hover .row-x,
+.cascade-row .row-x:focus-visible {
+  opacity: 1;
+}
+
 /* Small remove affordance at the end of editable rows */
 .row-x {
   border: none;

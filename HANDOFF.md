@@ -1,8 +1,19 @@
-# HANDOFF — Life Organization
+# HANDOFF — Life.Org (formerly Life Organization)
 
 Context document for any developer or AI session picking up this project. Read this first, then `design/README.md` (the original design spec; canonical for visuals, superseded in places by the personalization work described below).
 
-## Latest wave (Jul 9 2026): motion, installer, and the Accounts tab
+## Latest wave (Jul 10 2026): Life.Org rename, honest offline mode, Socials graph, Goal Center redesign
+
+- **Renamed to Life.Org** everywhere a person can see it: `package.json` (`productName`, NSIS `shortcutName`), window title + tray tooltip, `index.html`, sidebar brand, custom title bar, onboarding, backup copy, data-file names, README. **`appId` stays `com.lifeorganization.app` on purpose** so Windows treats the new installer as an upgrade, not a second app. The rename moves Electron's `userData` folder, so `electron/main.ts` gained `migrateOldUserData()`: on first launch under the new name it copies `life-org.db` (+ WAL/SHM sidecars) across from the old `Life Organization` folder. Do not remove it while any old install might still upgrade.
+- **The offline stub no longer invents anything.** `StubProvider` used to return canned student-persona output (Maya, problem sets, "Night Drive") for Strategist, Patterns, Weekly Review, the finance read, vault connections, the coach, preference learning, and chat summaries; that was the "default data" the user kept seeing. All of it is deleted. Offline, the only thing that still works is **brain-dump classification** (a real local heuristic over the person's own words). Everything else throws `NO_ENGINE` (see `isNoEngine`), and `aiAction` turns it into the toast "This needs the engine. Connect an API key in Settings, then run it again." A reflection still **saves** without a key; only its read-back needs the engine (`output` stays `null`).
+- **A saved key now wins over a stale "Offline" selection**: `provider()` falls back to Anthropic/OpenAI whenever a key exists even if `settings.provider` is `'stub'`, so pasting a key connects everything (including the Finances "read", which shares the same provider path as the coach).
+- **The Vault feeds the engine.** `buildContext()` now includes the 10 most recent vault notes, so the coach, strategist, patterns, and weekly review see what Brain Dump and reflections have filed.
+- **Accounts → Socials**, plus a follower graph: `src/components/FollowerChart.tsx`, an inline SVG line chart over `socialHistory` (accent line, recessive grid, crosshair + tooltip on hover, first/middle/last date labels, theme-variable colors in both modes). Renders once two daily snapshots exist.
+- **Goal Center redesigned**: header block (clickable area pill, large inline-editable title, full-width **click-to-set** progress bar snapping to fives, plus a typeable percent), then cascade levels as left-railed blocks (accent rail on Vision and Today), hover-reveal `×` per step, and "+ add step" that opens an empty inline editor (abandoning it removes the step). New `.cascade-row` styles in `global.css`.
+- **Icon brightened to orange** `#E08A33` (was muted gold `#B07F2C`) in `scripts/make-icon.mjs` and the `index.html` favicon; `build/icon.png`/`.ico` regenerated.
+- **Next wave (user-driven): a large design-FUNCTION overhaul.** The user intends to connect extra resources (anime.js among them) for a more elaborate interface. Keep today's tone and palette; the overhaul is about function and motion, not a re-theme. Wait for their resources before starting.
+
+## Previous wave (Jul 9 2026): motion, installer, and the Accounts tab
 
 The project now builds a real Windows installer on the user's own PC. Node 24 + the toolchain are installed locally; `npm run dist -- --publish never` with `CSC_IDENTITY_AUTO_DISCOVERY=false` writes `release/Life Organization Setup 1.0.0.exe`. The first build must run **elevated** once (electron-builder's winCodeSign archive holds macOS symlinks that Windows will not extract without the symlink privilege); after that the cache is warm and normal builds work. Windows Developer Mode is enabled on the machine.
 

@@ -1,6 +1,6 @@
 {
   "name": "life-organization",
-  "productName": "Life Organization",
+  "productName": "Life.Org",
   "version": "1.0.0",
   "description": "Personal Life OS: capture, plan, reflect. Local-first desktop app with a pluggable AI engine.",
   "private": true,
@@ -57,7 +57,7 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
-      "shortcutName": "Life Organization"
+      "shortcutName": "Life.Org"
     },
     "linux": {
       "target": "AppImage",
