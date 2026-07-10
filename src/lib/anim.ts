@@ -18,20 +18,25 @@ export function enterSection(section: HTMLElement): void {
     (c): c is HTMLElement => c instanceof HTMLElement,
   );
   if (!children.length || reducedMotion()) return;
+  const show = () => {
+    for (const c of children) {
+      c.style.opacity = '';
+      c.style.transform = '';
+    }
+  };
   // Hide before first paint so nothing flashes at full opacity.
   for (const c of children) c.style.opacity = '0';
-  createTimeline({
-    defaults: { ease: 'outQuint' },
-    onComplete: () => {
-      for (const c of children) {
-        c.style.opacity = '';
-        c.style.transform = '';
-      }
-    },
-  }).add(children, {
-    opacity: [0, 1],
-    translateY: [12, 0],
-    duration: 500,
-    delay: stagger(55),
-  });
+  try {
+    createTimeline({
+      defaults: { ease: 'outQuint' },
+      onComplete: show,
+    }).add(children, {
+      opacity: [0, 1],
+      translateY: [12, 0],
+      duration: 500,
+      delay: stagger(55),
+    });
+  } catch {
+    show(); // a failed flourish must never leave the page blank
+  }
 }

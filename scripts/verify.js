@@ -153,6 +153,20 @@ const FIXTURE = {
     await page.waitForTimeout(350);
   };
 
+  /* Offline contract: engine features refuse with a toast and invent nothing.
+   * Waits out any lingering toast first so one refusal can't vouch for the
+   * next check. */
+  const engineRefuses = async (act) => {
+    await page
+      .waitForSelector('text=This needs the engine', { state: 'detached', timeout: 6000 })
+      .catch(() => {});
+    await act();
+    const toast = await page
+      .waitForSelector('text=This needs the engine', { timeout: 4000 })
+      .catch(() => null);
+    return !!toast;
+  };
+
   /* ---- screenshots, light ---- */
   for (const [label, key] of NAV) {
     await nav(label);
@@ -189,12 +203,11 @@ const FIXTURE = {
   const ha = await habitsStat();
   ok('habit toggle updates habits counter', hb !== ha, `${hb} -> ${ha}`);
 
-  /* ---- replan (stub) ---- */
-  await page.click('button:has-text("Replan")');
-  await page.waitForSelector('text=Replanning…', { timeout: 3000 }).catch(() => {});
-  await page.waitForTimeout(1600);
-  const taskText = await page.locator('.task-row').first().innerText();
-  ok('replan produced tasks', taskText.trim().length > 0, taskText.split('\n')[0]);
+  /* ---- replan: offline, the engine refuses and the tasks stay put ---- */
+  const taskBefore = await page.locator('.task-row').first().innerText();
+  const replanRefused = await engineRefuses(() => page.click('button:has-text("Replan")'));
+  const taskAfter = await page.locator('.task-row').first().innerText();
+  ok('replan refuses without a key, tasks untouched', replanRefused && taskBefore === taskAfter);
 
   /* ---- brain dump capture (stub heuristic) ---- */
   await nav('Brain Dump');
@@ -206,38 +219,69 @@ const FIXTURE = {
   const taVal = await page.inputValue('textarea');
   ok('brain dump textarea cleared on success', taVal === '');
 
-  /* ---- goal cascade recalc + inline edit ---- */
+  /* ---- dump entries delete only after the themed confirm ---- */
+  const delBtns = page.locator('button[title="Delete this entry"]');
+  const rowsBefore = await delBtns.count();
+  await delBtns.last().click();
+  await page.waitForTimeout(250);
+  ok('dump delete asks first', await page.locator('.dialog-panel').isVisible());
+  await confirmDialog();
+  ok('dump entry deleted after confirm', (await delBtns.count()) === rowsBefore - 1);
+
+  /* ---- goal cascade: offline recalc refuses, roadmap untouched ---- */
   await nav('Goal Center');
-  await page.click('button:has-text("Recalculate roadmap")');
-  await page.waitForTimeout(1600);
-  const vision = await page.locator('main').innerText();
-  ok('cascade recalculated', /Steady, visible progress|Vision/i.test(vision));
+  const cascadeBefore = await page.locator('main').innerText();
+  const cascadeRefused = await engineRefuses(() =>
+    page.click('button:has-text("Recalculate roadmap")'),
+  );
+  ok(
+    'cascade refuses without a key, roadmap untouched',
+    cascadeRefused && (await page.locator('main').innerText()) === cascadeBefore,
+  );
 
-  /* ---- coach chat ---- */
+  /* ---- coach: the message is kept, the reply honestly refused ---- */
   await nav('Coach');
-  const bubbles = () => page.locator('main [style*="max-width"]').count();
-  await page.fill('input.field', 'I am overwhelmed');
-  await page.press('input.field', 'Enter');
-  await page.waitForTimeout(1800);
+  const coachRefused = await engineRefuses(async () => {
+    await page.fill('input.field', 'I am overwhelmed');
+    await page.press('input.field', 'Enter');
+  });
   const chatText = await page.locator('main').innerText();
-  ok('coach replied', /Overwhelm is usually|five tasks/i.test(chatText));
+  ok(
+    'coach refuses without a key, message kept',
+    coachRefused && /I am overwhelmed/.test(chatText) && !/Overwhelm is usually/.test(chatText),
+  );
 
-  /* ---- reflection ---- */
+  /* ---- reflection: saves offline; only the read back needs the engine ---- */
   await nav('Reflection');
   const tas = page.locator('textarea');
   await tas.nth(0).fill('Finished the problem set early and it felt good.');
   await tas.nth(1).fill('Stayed up too late again.');
   await page.click('button:has-text("Close out the day")');
-  await page.waitForTimeout(1800);
-  const reflOut = await page.locator('main').innerText();
-  ok('reflection produced output', /Tonight/i.test(reflOut) && /protect/i.test(reflOut));
+  await page.waitForTimeout(1400);
+  const reflState = await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('life-org-v2'));
+    return {
+      n: (s.reflections || []).length,
+      output: s.reflections?.[0]?.output ?? null,
+      journal: (s.vault || []).some((v) => v.tag === 'Journal'),
+    };
+  });
+  ok(
+    'reflection saves offline without an invented read',
+    reflState.n >= 1 &&
+      reflState.output === null &&
+      reflState.journal &&
+      !/Tonight/.test(await page.locator('main').innerText()),
+  );
 
   /* ---- weekly: empty until compiled ---- */
   await nav('Weekly Review');
   ok('weekly review starts empty', /Nothing compiled yet|Nothing has been compiled/.test(await page.locator('main').innerText()));
-  await page.click('button:has-text("Rebuild")');
-  await page.waitForTimeout(1600);
-  ok('weekly review rendered', /Biggest wins/i.test(await page.locator('main').innerText()));
+  const weeklyRefused = await engineRefuses(() => page.click('button:has-text("Rebuild")'));
+  ok(
+    'weekly refuses without a key, stays empty',
+    weeklyRefused && /Nothing compiled yet/.test(await page.locator('main').innerText()),
+  );
 
   /* ---- vault search + connections ---- */
   await nav('Knowledge Vault');
@@ -246,17 +290,21 @@ const FIXTURE = {
   const countLine = await page.locator('main').innerText();
   ok('vault live filter', /1 of \d+|2 of \d+/.test(countLine), (countLine.match(/\d+ of \d+ entries/) || [''])[0]);
   await page.fill('input.field', '');
-  await page.click('button:has-text("Surface connections")');
-  await page.waitForTimeout(1800);
-  ok('vault connections appeared', /Threads you/i.test(await page.locator('main').innerText()));
+  const connRefused = await engineRefuses(() => page.click('button:has-text("Surface connections")'));
+  ok(
+    'vault connections refuse without a key',
+    connRefused && !/Threads you/i.test(await page.locator('main').innerText()),
+  );
 
   /* ---- patterns: empty until the engine looks ---- */
   await nav('Patterns');
   const patBefore = await page.locator('main').innerText();
   ok('patterns start empty', /Nothing yet/.test(patBefore) && !/\b01\b/.test(patBefore));
-  await page.click('button:has-text("Look for patterns")');
-  await page.waitForTimeout(1600);
-  ok('patterns rendered', /01/.test(await page.locator('main').innerText()));
+  const patRefused = await engineRefuses(() => page.click('button:has-text("Look for patterns")'));
+  ok(
+    'patterns refuse without a key, stay empty',
+    patRefused && /Nothing yet/.test(await page.locator('main').innerText()),
+  );
 
   /* ---- strategist: starts empty, fills only from the engine ---- */
   await nav('Strategist');
@@ -265,12 +313,13 @@ const FIXTURE = {
     'strategist starts empty, no canned advice',
     /Nothing yet for today/.test(stratBefore) && !/01/.test(stratBefore),
   );
-  await page.click('button:has-text("Read my day")');
-  await page.waitForTimeout(1600);
-  await page.click('button:has-text("Run the debrief")');
-  await page.waitForTimeout(1800);
+  const morningRefused = await engineRefuses(() => page.click('button:has-text("Read my day")'));
+  const eveningRefused = await engineRefuses(() => page.click('button:has-text("Run the debrief")'));
   const strat = await page.locator('main').innerText();
-  ok('strategist morning + evening', /01/.test(strat) && /(moved the needle|tomorrow)/i.test(strat));
+  ok(
+    'strategist refuses without a key, stays empty',
+    morningRefused && eveningRefused && /Nothing yet for today/.test(strat) && !/01/.test(strat),
+  );
 
   /* ---- personalization: add task / habit / schedule / goal / project ---- */
   await nav('Life Dashboard');
@@ -294,7 +343,7 @@ const FIXTURE = {
   await page.click('button:has-text("+ Add a goal")');
   await page.waitForTimeout(300);
   ok('goal added', /New goal/.test(await page.locator('main').innerText()));
-  await page.click('button:has-text("Remove goal")');
+  await page.click('button:text-is("Remove")');
   await page.waitForTimeout(250);
   ok('themed confirm dialog opens', await page.locator('.dialog-panel').isVisible());
   await confirmDialog();
@@ -312,11 +361,10 @@ const FIXTURE = {
   await page.click('button:has-text("Add")');
   await page.waitForTimeout(300);
   ok('finance entry added', /Paycheck/.test(await page.locator('main').innerText()));
-  await page.click('button:has-text("Review finances")');
-  await page.waitForTimeout(1800);
+  const finRefused = await engineRefuses(() => page.click('button:has-text("Review finances")'));
   ok(
-    'finance review produced',
-    /not financial advice/i.test(await page.locator('main').innerText()),
+    'finance read refuses without a key',
+    finRefused && /Run the review once entries exist/.test(await page.locator('main').innerText()),
   );
 
   /* ---- schedule blocks show the daily/today repeat control ---- */
@@ -366,11 +414,11 @@ const FIXTURE = {
   const settingsText = await page.locator('main').innerText();
   ok('openai engine option offered', /OpenAI API/.test(settingsText));
 
-  /* ---- learned preferences accumulated from chat + reflection ---- */
+  /* ---- learned preferences: quiet offline, learns only from a live engine ---- */
   ok(
-    'engine learned preferences from usage',
-    /What the engine has learned/i.test(settingsText) && /Forget everything/.test(settingsText),
-    (settingsText.match(/has learned\n[\s\S]{0,110}/i) || [''])[0].replace(/\n/g, ' | ').slice(0, 140),
+    'preference learning waits for the engine',
+    /What the engine has learned/i.test(settingsText) &&
+      /Nothing yet\. It picks things up quietly/.test(settingsText),
   );
 
   /* ---- backup + restore round trip ---- */
@@ -421,7 +469,7 @@ const FIXTURE = {
   /* ---- persistence of dump across reload ---- */
   await nav('Brain Dump');
   const dumpAfterReload = await page.locator('main').innerText();
-  ok('dump items persisted across reload', /landlord/i.test(dumpAfterReload));
+  ok('dump items persisted across reload', /midnight|landlord/i.test(dumpAfterReload));
 
   /* ---- coach summarization: seed a long chat, next reply condenses it ---- */
   await page.evaluate(() => {
@@ -447,8 +495,8 @@ const FIXTURE = {
     return { n: parsed.chatSummarized, len: (parsed.chatSummary || '').length };
   });
   ok(
-    'coach history condensed in background',
-    summarized.n > 0 && summarized.len > 40,
+    'chat summarization waits for the engine',
+    summarized.n === 0 && summarized.len === 0,
     `covers ${summarized.n} messages, summary ${summarized.len} chars`,
   );
 
