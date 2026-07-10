@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, type OnboardingAnswers } from '../lib/store';
-import { AccentButton, Card, CardLabel, GhostButton } from '../components/ui';
+import { AccentButton, Card, CardLabel, GhostButton, Wordmark } from '../components/ui';
 import { DEFAULT_AREAS } from '../lib/types';
 
 /* First-run setup: shown until settings.onboarded. Either answers a short set
@@ -77,7 +77,9 @@ export default function Onboarding() {
       <Card className="fade-up" style={{ maxWidth: 540, width: '100%', padding: 28 }}>
         {step === 'choice' && (
           <>
-            <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Life.Org</div>
+            <div style={{ marginBottom: 10 }}>
+              <Wordmark size={24} />
+            </div>
             <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
               One system for goals, days, habits, money, and review. Set it up for yourself, or
               start empty and fill it in as you go.

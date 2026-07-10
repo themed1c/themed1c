@@ -22,6 +22,7 @@ export function initialDark(): boolean {
 }
 
 export const FONT_LABEL = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+export const FONT_WORDMARK = "'Outfit', 'Helvetica Neue', sans-serif";
 export const FONT_NUM = "'Oswald', 'Arial Narrow', sans-serif";
 export const FONT_BODY =
   "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif";

@@ -6,6 +6,15 @@
   src: url('./assets/fonts/oswald-latin.woff2') format('woff2');
 }
 
+/* Brand wordmark face (design/logo/README.md): life.org in Outfit 700. */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/outfit-latin-700.woff2') format('woff2');
+}
+
 :root {
   --bg: #FDFCF9;
   --card: #FFFFFF;
@@ -520,4 +529,14 @@ select {
   color: var(--text);
   font-size: 14.5px;
   outline: none;
+}
+
+/* Wordmark ink per the brand spec: near-black on light, off-white on dark;
+ * the green period never changes. */
+:root {
+  --wordmark-ink: #0B1512;
+}
+
+.dark {
+  --wordmark-ink: #F2F5F3;
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppProvider, useApp, type ModuleKey } from './lib/store';
 import { enterSection } from './lib/anim';
-import { Toast } from './components/ui';
+import { Toast, Wordmark } from './components/ui';
 import { DialogHost } from './components/dialog';
 import { FONT_LABEL, FONT_NUM } from './lib/theme';
 import { dateShort } from './lib/time';
@@ -96,9 +96,7 @@ function Sidebar() {
               style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
             />
           )}
-          <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '0.01em' }}>
-            Life.Org
-          </div>
+          <Wordmark size={17} />
         </div>
         <div
           style={{
@@ -210,7 +208,11 @@ function Main() {
         overflow: 'hidden',
       }}
     >
-      {isDesktop && <div className="titlebar">Life.Org</div>}
+      {isDesktop && (
+        <div className="titlebar">
+          <Wordmark size={12} />
+        </div>
+      )}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <Sidebar />
         <main className="main-pad">

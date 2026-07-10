@@ -15,7 +15,7 @@
     "start": "npm run build && electron .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p electron/tsconfig.json",
     "icon": "node scripts/make-icon.mjs",
-    "dist": "npm run icon && npm run build && electron-builder"
+    "dist": "npm run build && electron-builder"
   },
   "dependencies": {
     "animejs": "^4.5.0",

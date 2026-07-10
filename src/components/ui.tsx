@@ -1,9 +1,44 @@
 import React from 'react';
 import { motion, animate } from 'motion/react';
-import { FONT_LABEL, FONT_NUM } from '../lib/theme';
+import { FONT_LABEL, FONT_NUM, FONT_WORDMARK } from '../lib/theme';
 
 /* Shared primitives matching the design tokens. Keep visual values inline so
  * each module reads like the prototype markup. */
+
+/** The brand wordmark (design/logo/README.md): lowercase life.org in Outfit
+ *  700, with the period drawn as a geometric green dot on the baseline. The
+ *  one place the brand green appears; everything else keeps the app palette. */
+export function Wordmark({ size = 15, style }: { size?: number; style?: React.CSSProperties }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'baseline',
+        fontFamily: FONT_WORDMARK,
+        fontWeight: 700,
+        fontSize: size,
+        letterSpacing: '-0.02em',
+        lineHeight: 1,
+        color: 'var(--wordmark-ink)',
+        ...style,
+      }}
+    >
+      life
+      <span
+        style={{
+          display: 'inline-block',
+          width: '0.18em',
+          height: '0.18em',
+          borderRadius: '50%',
+          background: '#12B76A',
+          margin: '0 0.07em',
+          flexShrink: 0,
+        }}
+      />
+      org
+    </span>
+  );
+}
 
 export function Card({
   children,
