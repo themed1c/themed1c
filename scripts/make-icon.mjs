@@ -13,8 +13,13 @@ const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
 /** Signed distance to a rounded square centred on the origin. */
 function sdRoundRect(x, y, half, r) {
-  const qx = Math.abs(x) - half + r;
-  const qy = Math.abs(y) - half + r;
+  return sdRoundRectWH(x, y, half, half, r);
+}
+
+/** Signed distance to a rounded rectangle with half-extents hx/hy. */
+function sdRoundRectWH(x, y, hx, hy, r) {
+  const qx = Math.abs(x) - hx + r;
+  const qy = Math.abs(y) - hy + r;
   const ax = Math.max(qx, 0);
   const ay = Math.max(qy, 0);
   return Math.hypot(ax, ay) + Math.min(Math.max(qx, qy), 0) - r;
@@ -27,8 +32,27 @@ function render(size) {
   const px = Buffer.alloc(size * size * 4);
   const half = size / 2;
   const radius = size * 0.22;
-  const ringMid = size * 0.245;
-  const ringHalf = size * 0.055;
+
+  // Open book as a line drawing: the outlines of two tilted pages meeting
+  // at the spine. A few simple strokes, cream on the gold plate.
+  const pageHX = size * 0.105;
+  const pageHY = size * 0.135;
+  const pageR = size * 0.032;
+  const pageOffX = size * 0.125;
+  const tilt = 0.05; // radians; a hint of splay toward the spine
+  const stroke = size * 0.03; // half-width of the outline stroke
+
+  /** Distance to one page: mirror x for the right page, then un-rotate. */
+  const pageDist = (x, y, side) => {
+    const lx = side * x - pageOffX; // both pages solved in left-page space
+    const ly = y;
+    const c = Math.cos(tilt);
+    const s = Math.sin(tilt);
+    // Rotate so the page's inner (spine-side) edge sits lower than the outer.
+    const rx = lx * c - ly * s;
+    const ry = lx * s + ly * c;
+    return sdRoundRectWH(rx, ry, pageHX, pageHY, pageR);
+  };
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -36,11 +60,14 @@ function render(size) {
       const cy = y + 0.5 - half;
 
       const bg = cov(sdRoundRect(cx, cy, half, radius));
-      const ring = cov(Math.abs(Math.hypot(cx, cy) - ringMid) - ringHalf);
+      const book = Math.max(
+        cov(Math.abs(pageDist(cx, cy, 1)) - stroke),
+        cov(Math.abs(pageDist(cx, cy, -1)) - stroke),
+      );
 
-      // Cream ring composited over the gold plate.
+      // Cream book composited over the gold plate.
       const a = bg;
-      const t = Math.min(ring, bg);
+      const t = Math.min(book, bg);
       const r = GOLD[0] * (1 - t) + CREAM[0] * t;
       const g = GOLD[1] * (1 - t) + CREAM[1] * t;
       const b = GOLD[2] * (1 - t) + CREAM[2] * t;
