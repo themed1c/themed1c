@@ -8,6 +8,9 @@ on:
       - 'design/**'
       - '**/*.md'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -34,3 +37,21 @@ jobs:
             release/*.zip
             release/*.AppImage
           if-no-files-found: warn
+      # Keeps the newest Windows installer on the release-drop branch so it
+      # can be fetched over git (Actions artifacts need a browser login and
+      # expire after 90 days; this ref always holds the latest setup exe).
+      - name: Publish Windows installer to the release-drop branch
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/drop" && cd "$RUNNER_TEMP/drop"
+          git init -q -b release-drop
+          cp "$GITHUB_WORKSPACE"/release/*.exe .
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com \
+            commit -qm "Windows installer from $GITHUB_SHA"
+          git push -q --force \
+            "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" release-drop
