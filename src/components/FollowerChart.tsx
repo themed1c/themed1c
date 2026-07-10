@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { animate, svg as animeSvg } from 'animejs';
+import { reducedMotion } from '../lib/anim';
 import type { SocialSnapshot } from '../lib/types';
 import { FONT_NUM } from '../lib/theme';
 
@@ -36,6 +38,34 @@ function niceTicks(min: number, max: number): number[] {
 export default function FollowerChart({ history }: { history: SocialSnapshot[] }) {
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const lineRef = useRef<SVGPathElement>(null);
+  const dotRef = useRef<SVGCircleElement>(null);
+
+  // Entrance: the line draws itself left to right while a dot rides its tip
+  // along the exact same motion path, settling on the newest reading.
+  useEffect(() => {
+    const line = lineRef.current;
+    const dot = dotRef.current;
+    if (!line || !dot) return;
+    if (reducedMotion()) {
+      dot.style.opacity = '1';
+      const { translateX, translateY } = animeSvg.createMotionPath(line);
+      animate(dot, { translateX, translateY, duration: 1 });
+      return;
+    }
+    const timing = { duration: 1100, ease: 'inOutQuart' } as const;
+    const draw = animate(animeSvg.createDrawable(line), { draw: ['0 0', '0 1'], ...timing });
+    dot.style.opacity = '1';
+    const { translateX, translateY } = animeSvg.createMotionPath(line);
+    const glide = animate(dot, { translateX, translateY, ...timing });
+    return () => {
+      draw.cancel();
+      glide.cancel();
+    };
+    // Mount-only: the module remounts on every visit, and hover re-renders
+    // must not restart the entrance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (history.length < 2) return null;
 
@@ -147,7 +177,17 @@ export default function FollowerChart({ history }: { history: SocialSnapshot[] }
           </text>
         ))}
 
-        <path d={path} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" />
+        <path
+          ref={lineRef}
+          d={path}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+
+        {/* rides the tip of the line while it draws, then marks the newest day */}
+        <circle ref={dotRef} r={3.5} fill="var(--accent)" style={{ opacity: 0 }} />
 
         {/* hover: crosshair plus the day's point, ringed in surface color */}
         {h && (

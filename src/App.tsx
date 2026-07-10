@@ -1,5 +1,6 @@
 import React from 'react';
 import { AppProvider, useApp, type ModuleKey } from './lib/store';
+import { enterSection } from './lib/anim';
 import { Toast } from './components/ui';
 import { DialogHost } from './components/dialog';
 import { FONT_LABEL, FONT_NUM } from './lib/theme';
@@ -181,6 +182,21 @@ function Sidebar() {
   );
 }
 
+/** Runs the staggered entrance timeline every time the module changes. Uses
+ *  a layout effect so children are hidden before the first paint. */
+function ModuleFrame({ moduleKey, children }: { moduleKey: string; children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    const section = ref.current?.querySelector('section');
+    if (section instanceof HTMLElement) enterSection(section);
+  }, [moduleKey]);
+  return (
+    <div ref={ref} style={{ height: '100%' }}>
+      {children}
+    </div>
+  );
+}
+
 function Main() {
   const app = useApp();
   const Module = MODULES[app.module];
@@ -199,7 +215,11 @@ function Main() {
         <Sidebar />
         <main className="main-pad">
           <div style={{ maxWidth: 1060, margin: '0 auto', height: '100%' }}>
-            {app.hydrated ? <Module key={app.module} /> : null}
+            {app.hydrated ? (
+              <ModuleFrame moduleKey={app.module}>
+                <Module key={app.module} />
+              </ModuleFrame>
+            ) : null}
           </div>
         </main>
       </div>

@@ -161,8 +161,10 @@ select {
   }
 }
 
+/* Section movement now comes from the anime.js entrance timeline (lib/anim.ts);
+ * this class keeps a plain fade for surfaces outside a module frame. */
 .fade-up {
-  animation: fadeUp 0.3s ease;
+  animation: fadeIn 0.25s ease;
 }
 
 @keyframes fadeIn {
@@ -315,8 +317,36 @@ select {
 }
 
 /* Goal card selector hover */
+.goal-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.15s ease;
+}
+
 .goal-card:hover {
   border-color: var(--box) !important;
+  transform: translateY(-1px);
+}
+
+/* Quiet lift on interactive rows; static cards stay still on purpose */
+.task-row {
+  transition: transform 0.2s ease, border-color 0.15s ease;
+}
+
+.task-row:hover {
+  transform: translateY(-1px);
+}
+
+/* Buttons settle under the pointer instead of snapping */
+.ghost-btn,
+.accent-btn,
+.danger-btn {
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.ghost-btn:active,
+.accent-btn:active,
+.danger-btn:active {
+  transform: scale(0.97);
 }
 
 /* Theme toggle pill */
@@ -428,6 +458,15 @@ select {
 /* Drag-to-reorder rows */
 .drag-over {
   border-top: 2px solid var(--accent) !important;
+}
+
+/* The row being dragged (anime.js createDraggable) floats above the list */
+.drag-lift {
+  position: relative;
+  z-index: 5;
+  background: var(--card);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
 }
 
 /* Goal cascade rows: quiet until hovered, then the affordances show */

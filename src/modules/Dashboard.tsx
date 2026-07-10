@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createDraggable } from 'animejs';
 import { useApp } from '../lib/store';
 import {
   AddRow, AnimatedNum, Card, CardLabel, CheckSquare, Chip, GhostButton, InlineText, Num, Track,
@@ -11,8 +12,49 @@ import { PASTELS } from '../lib/seed';
 
 export default function Dashboard() {
   const app = useApp();
-  const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  /* Schedule reorder rides anime.js createDraggable: grab the grip, the row
+   * follows the pointer with the rest of the list held in place, and the drop
+   * lands on whichever slot the row is nearest. Rebuilt whenever the list
+   * changes; revert() clears the transforms the drag left behind. */
+  const scheduleKey = app.schedule.map((s) => s.id).join('|');
+  const reorderSchedule = app.reorderSchedule;
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const count = rowRefs.current.length;
+    const clampIndex = (n: number) => Math.max(0, Math.min(count - 1, n));
+    const instances = rowRefs.current.map((row, i) => {
+      if (!row) return null;
+      const grip = row.querySelector<HTMLElement>('.drag-grip');
+      if (!grip) return null;
+      return createDraggable(row, {
+        trigger: grip,
+        x: false,
+        container: list,
+        onGrab: () => row.classList.add('drag-lift'),
+        onDrag: (self) => {
+          const h = row.offsetHeight || 1;
+          const target = clampIndex(i + Math.round(self.y / h));
+          setDragOver(target !== i ? target : null);
+        },
+        onRelease: (self) => {
+          row.classList.remove('drag-lift');
+          const h = row.offsetHeight || 1;
+          const target = clampIndex(i + Math.round(self.y / h));
+          setDragOver(null);
+          self.reset(); // React owns the order; the transform must not linger
+          if (target !== i) reorderSchedule(i, target);
+        },
+      });
+    });
+    return () => {
+      for (const d of instances) d?.revert();
+    };
+  }, [scheduleKey, reorderSchedule]);
 
   const areas = computeAreaScores(app);
   const score = focusScore(app);
@@ -247,21 +289,15 @@ export default function Dashboard() {
                 + Add a block
               </GhostButton>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div ref={listRef} style={{ display: 'flex', flexDirection: 'column' }}>
               {app.schedule.map((s, i) => (
                 <div
                   key={s.id}
-                  className={dragOver === i && dragFrom !== null && dragFrom !== i ? 'drag-over' : undefined}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(i);
+                  ref={(el) => {
+                    rowRefs.current[i] = el;
+                    rowRefs.current.length = app.schedule.length;
                   }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (dragFrom !== null) app.reorderSchedule(dragFrom, i);
-                    setDragFrom(null);
-                    setDragOver(null);
-                  }}
+                  className={dragOver === i ? 'drag-over' : undefined}
                   style={{
                     display: 'flex',
                     gap: 12,
@@ -272,12 +308,7 @@ export default function Dashboard() {
                   }}
                 >
                   <span
-                    draggable
-                    onDragStart={() => setDragFrom(i)}
-                    onDragEnd={() => {
-                      setDragFrom(null);
-                      setDragOver(null);
-                    }}
+                    className="drag-grip"
                     title="Drag to reorder"
                     style={{
                       cursor: 'grab',
