@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #f2f5f3; font-family: 'Outfit', 'Helvetica Neue', sans-serif; }
+    a { color: #0f7a44; text-decoration: none; }
+    a:hover { color: #0b5c33; }
+  </style>
+</helmet>
+
+<section style="padding: 48px; display: flex; flex-direction: column; gap: 24px;">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #5c6a62; font-weight: 600;">Turn 2 — life.org wordmark, no glyph</div>
+    <div style="font-size: 15px; color: #47554d;">Type-only mark with a styled green period, shown at every installer icon size from 512 down to 16 px.</div>
+  </div>
+
+  <div id="2a" style="background: #ffffff; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 24px; box-shadow: 0 1px 3px rgba(10,20,15,0.06); align-self: flex-start;">
+    <a href="#2a" style="align-self: flex-start; font-size: 12px; font-weight: 700; background: #e3efe8; color: #0f7a44; border-radius: 999px; padding: 3px 10px;">2a</a>
+
+    <div style="display: flex; align-items: baseline; justify-content: center; padding: 40px 60px; background: #eef1ef; border-radius: 12px;">
+      <span style="font-size: 96px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em; line-height: 1;">life</span><span style="display: inline-block; width: 0.18em; height: 0.18em; border-radius: 999px; background: #12B76A; margin: 0 0.07em; font-size: 96px;"></span><span style="font-size: 96px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em; line-height: 1;">org</span>
+    </div>
+
+    <div style="display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
+
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="width: 512px; height: 512px; border: 1px solid #e5eae7; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+          <span style="display: inline-flex; align-items: baseline; font-size: 133px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em; line-height: 1;">life<span style="display: inline-block; width: 0.18em; height: 0.18em; border-radius: 999px; background: #12B76A; margin: 0 0.07em;"></span>org</span>
+        </div>
+        <span style="font-size: 12px; color: #7a877f;">512 px</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="width: 256px; height: 256px; border: 1px solid #e5eae7; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+          <span style="display: inline-flex; align-items: baseline; font-size: 66px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em; line-height: 1;">life<span style="display: inline-block; width: 0.18em; height: 0.18em; border-radius: 999px; background: #12B76A; margin: 0 0.07em;"></span>org</span>
+        </div>
+        <span style="font-size: 12px; color: #7a877f;">256 px</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="width: 128px; height: 128px; border: 1px solid #e5eae7; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+          <span style="display: inline-flex; align-items: baseline; font-size: 33px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em; line-height: 1;">life<span style="display: inline-block; width: 0.18em; height: 0.18em; border-radius: 999px; background: #12B76A; margin: 0 0.07em;"></span>org</span>
+        </div>
+        <span style="font-size: 12px; color: #7a877f;">128 px</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="width: 64px; height: 64px; border: 1px solid #e5eae7; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+          <span style="display: inline-flex; align-items: baseline; font-size: 16px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em; line-height: 1;">life<span style="display: inline-block; width: 0.18em; height: 0.18em; border-radius: 999px; background: #12B76A; margin: 0 0.07em;"></span>org</span>
+        </div>
+        <span style="font-size: 12px; color: #7a877f;">64 px</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="width: 48px; height: 48px; border: 1px solid #e5eae7; border-radius: 5px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+          <span style="display: inline-flex; align-items: baseline; font-size: 12px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em; line-height: 1;">life<span style="display: inline-block; width: 0.18em; height: 0.18em; border-radius: 999px; background: #12B76A; margin: 0 0.06em;"></span>org</span>
+        </div>
+        <span style="font-size: 12px; color: #7a877f;">48 px</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="width: 32px; height: 32px; border: 1px solid #e5eae7; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+          <span style="display: inline-flex; align-items: baseline; font-size: 8px; font-weight: 700; color: #0B1512; letter-spacing: -0.01em; line-height: 1;">life<span style="display: inline-block; width: 0.2em; height: 0.2em; border-radius: 999px; background: #12B76A; margin: 0 0.06em;"></span>org</span>
+        </div>
+        <span style="font-size: 12px; color: #7a877f;">32 px</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="width: 16px; height: 16px; border: 1px solid #e5eae7; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+          <span style="display: inline-flex; align-items: baseline; font-size: 4px; font-weight: 700; color: #0B1512; line-height: 1;">life<span style="display: inline-block; width: 0.25em; height: 0.25em; border-radius: 999px; background: #12B76A; margin: 0 0.05em;"></span>org</span>
+        </div>
+        <span style="font-size: 12px; color: #7a877f;">16 px</span>
+      </div>
+
+    </div>
+    <div style="font-size: 14px; color: #2a352e;"><strong>life.org wordmark.</strong> Green dot period. Note: below 48 px, text-only marks stop being legible — worth pairing with a glyph for favicon/installer sizes.</div>
+  </div>
+</section>
+
+<section style="padding: 48px; display: flex; flex-direction: column; gap: 24px;">
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #5c6a62; font-weight: 600;">Turn 1 — LifeOrg icon explorations</div>
+    <div style="font-size: 15px; color: #47554d;">Open-book glyph, fresh green. Each card shows favicon sizes below.</div>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch;">
+
+    <!-- 1a -->
+    <div id="1a" style="background: #ffffff; border-radius: 16px; padding: 20px; width: 280px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 3px rgba(10,20,15,0.06);">
+      <a href="#1a" style="align-self: flex-start; font-size: 12px; font-weight: 700; background: #e3efe8; color: #0f7a44; border-radius: 999px; padding: 3px 10px;">1a</a>
+      <div style="height: 200px; display: flex; align-items: center; justify-content: center; background: #eef1ef; border-radius: 12px;">
+        <svg viewBox="0 0 100 100" width="160" height="160">
+          <circle cx="50" cy="50" r="50" fill="#12B76A"></circle>
+          <g fill="none" stroke="#0B1512" stroke-width="7" stroke-linecap="round">
+            <path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path>
+            <path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path>
+            <path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path>
+            <path d="M50 42 L50 66"></path>
+          </g>
+        </svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <svg viewBox="0 0 100 100" width="48" height="48"><circle cx="50" cy="50" r="50" fill="#12B76A"></circle><g fill="none" stroke="#0B1512" stroke-width="7" stroke-linecap="round"><path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path><path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path><path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path><path d="M50 42 L50 66"></path></g></svg>
+        <svg viewBox="0 0 100 100" width="24" height="24"><circle cx="50" cy="50" r="50" fill="#12B76A"></circle><g fill="none" stroke="#0B1512" stroke-width="7" stroke-linecap="round"><path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path><path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path><path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path><path d="M50 42 L50 66"></path></g></svg>
+        <span style="font-size: 12px; color: #7a877f;">48 / 24 px</span>
+      </div>
+      <div style="font-size: 14px; color: #2a352e;"><strong>Wave book, green circle.</strong> Tiered page curves, dark glyph.</div>
+    </div>
+
+    <!-- 1b -->
+    <div id="1b" style="background: #ffffff; border-radius: 16px; padding: 20px; width: 280px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 3px rgba(10,20,15,0.06);">
+      <a href="#1b" style="align-self: flex-start; font-size: 12px; font-weight: 700; background: #e3efe8; color: #0f7a44; border-radius: 999px; padding: 3px 10px;">1b</a>
+      <div style="height: 200px; display: flex; align-items: center; justify-content: center; background: #eef1ef; border-radius: 12px;">
+        <svg viewBox="0 0 100 100" width="160" height="160">
+          <circle cx="50" cy="50" r="50" fill="#0B1512"></circle>
+          <g fill="none" stroke="#12B76A" stroke-width="7" stroke-linecap="round">
+            <path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path>
+            <path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path>
+            <path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path>
+            <path d="M50 42 L50 66"></path>
+          </g>
+        </svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <svg viewBox="0 0 100 100" width="48" height="48"><circle cx="50" cy="50" r="50" fill="#0B1512"></circle><g fill="none" stroke="#12B76A" stroke-width="7" stroke-linecap="round"><path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path><path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path><path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path><path d="M50 42 L50 66"></path></g></svg>
+        <svg viewBox="0 0 100 100" width="24" height="24"><circle cx="50" cy="50" r="50" fill="#0B1512"></circle><g fill="none" stroke="#12B76A" stroke-width="7" stroke-linecap="round"><path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path><path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path><path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path><path d="M50 42 L50 66"></path></g></svg>
+        <span style="font-size: 12px; color: #7a877f;">48 / 24 px</span>
+      </div>
+      <div style="font-size: 14px; color: #2a352e;"><strong>Inverted.</strong> Near-black circle, green glyph.</div>
+    </div>
+
+    <!-- 1c -->
+    <div id="1c" style="background: #ffffff; border-radius: 16px; padding: 20px; width: 280px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 3px rgba(10,20,15,0.06);">
+      <a href="#1c" style="align-self: flex-start; font-size: 12px; font-weight: 700; background: #e3efe8; color: #0f7a44; border-radius: 999px; padding: 3px 10px;">1c</a>
+      <div style="height: 200px; display: flex; align-items: center; justify-content: center; background: #eef1ef; border-radius: 12px;">
+        <svg viewBox="0 0 100 100" width="160" height="160">
+          <circle cx="50" cy="50" r="50" fill="#12B76A"></circle>
+          <g fill="none" stroke="#0B1512" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M50 36 C44 29 33 28 25 31 L25 62 C33 59 44 60 50 67 C56 60 67 59 75 62 L75 31 C67 28 56 29 50 36"></path>
+            <path d="M50 36 L50 67"></path>
+          </g>
+        </svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <svg viewBox="0 0 100 100" width="48" height="48"><circle cx="50" cy="50" r="50" fill="#12B76A"></circle><g fill="none" stroke="#0B1512" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M50 36 C44 29 33 28 25 31 L25 62 C33 59 44 60 50 67 C56 60 67 59 75 62 L75 31 C67 28 56 29 50 36"></path><path d="M50 36 L50 67"></path></g></svg>
+        <svg viewBox="0 0 100 100" width="24" height="24"><circle cx="50" cy="50" r="50" fill="#12B76A"></circle><g fill="none" stroke="#0B1512" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M50 36 C44 29 33 28 25 31 L25 62 C33 59 44 60 50 67 C56 60 67 59 75 62 L75 31 C67 28 56 29 50 36"></path><path d="M50 36 L50 67"></path></g></svg>
+        <span style="font-size: 12px; color: #7a877f;">48 / 24 px</span>
+      </div>
+      <div style="font-size: 14px; color: #2a352e;"><strong>Classic book outline.</strong> Literal open book, green circle.</div>
+    </div>
+
+    <!-- 1d -->
+    <div id="1d" style="background: #ffffff; border-radius: 16px; padding: 20px; width: 280px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 3px rgba(10,20,15,0.06);">
+      <a href="#1d" style="align-self: flex-start; font-size: 12px; font-weight: 700; background: #e3efe8; color: #0f7a44; border-radius: 999px; padding: 3px 10px;">1d</a>
+      <div style="height: 200px; display: flex; align-items: center; justify-content: center; background: #eef1ef; border-radius: 12px;">
+        <svg viewBox="0 0 100 100" width="160" height="160">
+          <rect x="0" y="0" width="100" height="100" rx="24" fill="#12B76A"></rect>
+          <g fill="none" stroke="#0B1512" stroke-width="7" stroke-linecap="round">
+            <path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path>
+            <path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path>
+            <path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path>
+            <path d="M50 42 L50 66"></path>
+          </g>
+        </svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <svg viewBox="0 0 100 100" width="48" height="48"><rect x="0" y="0" width="100" height="100" rx="24" fill="#12B76A"></rect><g fill="none" stroke="#0B1512" stroke-width="7" stroke-linecap="round"><path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path><path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path><path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path><path d="M50 42 L50 66"></path></g></svg>
+        <svg viewBox="0 0 100 100" width="24" height="24"><rect x="0" y="0" width="100" height="100" rx="24" fill="#12B76A"></rect><g fill="none" stroke="#0B1512" stroke-width="7" stroke-linecap="round"><path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path><path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path><path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path><path d="M50 42 L50 66"></path></g></svg>
+        <span style="font-size: 12px; color: #7a877f;">48 / 24 px</span>
+      </div>
+      <div style="font-size: 14px; color: #2a352e;"><strong>App-icon squircle.</strong> Wave book on rounded square.</div>
+    </div>
+
+    <!-- 1e -->
+    <div id="1e" style="background: #ffffff; border-radius: 16px; padding: 20px; width: 280px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 3px rgba(10,20,15,0.06);">
+      <a href="#1e" style="align-self: flex-start; font-size: 12px; font-weight: 700; background: #e3efe8; color: #0f7a44; border-radius: 999px; padding: 3px 10px;">1e</a>
+      <div style="height: 200px; display: flex; align-items: center; justify-content: center; background: #eef1ef; border-radius: 12px;">
+        <svg viewBox="0 0 100 100" width="160" height="160">
+          <rect x="0" y="0" width="100" height="100" rx="24" fill="#0B1512"></rect>
+          <g fill="none" stroke="#12B76A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M50 36 C44 29 33 28 25 31 L25 62 C33 59 44 60 50 67 C56 60 67 59 75 62 L75 31 C67 28 56 29 50 36"></path>
+            <path d="M50 36 L50 67"></path>
+          </g>
+        </svg>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <svg viewBox="0 0 100 100" width="48" height="48"><rect x="0" y="0" width="100" height="100" rx="24" fill="#0B1512"></rect><g fill="none" stroke="#12B76A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M50 36 C44 29 33 28 25 31 L25 62 C33 59 44 60 50 67 C56 60 67 59 75 62 L75 31 C67 28 56 29 50 36"></path><path d="M50 36 L50 67"></path></g></svg>
+        <svg viewBox="0 0 100 100" width="24" height="24"><rect x="0" y="0" width="100" height="100" rx="24" fill="#0B1512"></rect><g fill="none" stroke="#12B76A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M50 36 C44 29 33 28 25 31 L25 62 C33 59 44 60 50 67 C56 60 67 59 75 62 L75 31 C67 28 56 29 50 36"></path><path d="M50 36 L50 67"></path></g></svg>
+        <span style="font-size: 12px; color: #7a877f;">48 / 24 px</span>
+      </div>
+      <div style="font-size: 14px; color: #2a352e;"><strong>Dark squircle.</strong> Classic book in green — installer/desktop feel.</div>
+    </div>
+
+    <!-- 1f -->
+    <div id="1f" style="background: #ffffff; border-radius: 16px; padding: 20px; width: 280px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 1px 3px rgba(10,20,15,0.06);">
+      <a href="#1f" style="align-self: flex-start; font-size: 12px; font-weight: 700; background: #e3efe8; color: #0f7a44; border-radius: 999px; padding: 3px 10px;">1f</a>
+      <div style="height: 200px; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid #e5eae7; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <svg viewBox="0 0 100 100" width="64" height="64">
+            <g fill="none" stroke="#12B76A" stroke-width="7" stroke-linecap="round">
+              <path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path>
+              <path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path>
+              <path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path>
+              <path d="M50 42 L50 66"></path>
+            </g>
+          </svg>
+          <span style="font-size: 34px; font-weight: 700; color: #0B1512; letter-spacing: -0.02em;">lifeorg</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <svg viewBox="0 0 100 100" width="32" height="32"><g fill="none" stroke="#12B76A" stroke-width="7" stroke-linecap="round"><path d="M50 66 C43 59 32 58 22 61 M50 66 C57 59 68 58 78 61"></path><path d="M50 54 C43 47 32 46 22 49 M50 54 C57 47 68 46 78 49"></path><path d="M50 42 C43 35 32 34 22 37 M50 42 C57 35 68 34 78 37"></path><path d="M50 42 L50 66"></path></g></svg>
+        <span style="font-size: 16px; font-weight: 700; color: #0B1512;">lifeorg</span>
+        <span style="font-size: 12px; color: #7a877f;">header size</span>
+      </div>
+      <div style="font-size: 14px; color: #2a352e;"><strong>Wordmark lockup.</strong> Bare glyph + name, for website header.</div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>
